@@ -5,18 +5,33 @@ const tmpDir = '/tmp/processed-files';
 
 exports.handler = async (event, context) => {
     try {
+        // Enable CORS
+        const headers = {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type',
+            'Access-Control-Allow-Methods': 'GET, OPTIONS'
+        };
+        
+        // Handle preflight request
+        if (event.httpMethod === 'OPTIONS') {
+            return { statusCode: 200, headers, body: '' };
+        }
+        
         if (event.httpMethod !== 'GET') {
             return { 
                 statusCode: 405, 
+                headers,
                 body: JSON.stringify({ error: 'Method Not Allowed' }) 
             };
         }
         
-        const { file_id: fileId } = event.queryStringParameters;
+        const { queryStringParameters } = event;
+        const { file_id: fileId } = queryStringParameters;
         
         if (!fileId) {
             return { 
                 statusCode: 400, 
+                headers,
                 body: JSON.stringify({ error: 'File ID is required' }) 
             };
         }
@@ -30,6 +45,7 @@ exports.handler = async (event, context) => {
             console.log('File not found:', filePath);
             return { 
                 statusCode: 404, 
+                headers,
                 body: JSON.stringify({ error: 'File not found or has expired' }) 
             };
         }
@@ -58,6 +74,11 @@ exports.handler = async (event, context) => {
         console.error('Error getting file:', error);
         return {
             statusCode: 500,
+            headers: {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type',
+                'Access-Control-Allow-Methods': 'GET, OPTIONS'
+            },
             body: JSON.stringify({
                 error: 'Failed to retrieve file',
                 details: error.message

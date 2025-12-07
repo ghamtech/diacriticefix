@@ -62,13 +62,17 @@
             background: #f8f9fa;
             border-radius: 5px;
         }
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
     <header>
         <div class="container header-content">
             <div class="logo">
-                <img src="logo.png" alt="DiacriticeFix" class="logo-img">
+                <img src="logo.png" alt="DiacriticeFix Logo" class="logo-img">
+                <h1>DiacriticeFix Debug</h1>
             </div>
         </div>
     </header>
@@ -119,7 +123,7 @@
                 const response = await fetch('/.netlify/functions/test-api');
                 const data = await response.json();
                 
-                if (data.success) {
+                if (response.ok && data.success) {
                     resultDiv.textContent = '✅ PDF.co API connection successful!';
                     resultDiv.className = 'status success';
                     
@@ -150,18 +154,23 @@
             detailsDiv.className = 'result hidden';
             
             try {
-                // In a real app, this would call a function to check environment
-                const envData = {
-                    baseUrl: window.location.origin,
-                    nodeEnv: process.env.NODE_ENV || 'development',
-                    hasPdfcoKey: !!document.querySelector('meta[name="pdfco-key"]')
-                };
+                // Fetch from Netlify function instead of using process.env (which doesn't exist in browser)
+                const response = await fetch('/.netlify/functions/check-env');
+                const data = await response.json();
                 
-                resultDiv.textContent = '✅ Environment variables loaded';
-                resultDiv.className = 'status success';
-                
-                detailsDiv.textContent = JSON.stringify(envData, null, 2);
-                detailsDiv.className = 'result';
+                if (response.ok && data.success) {
+                    resultDiv.textContent = '✅ Environment variables loaded';
+                    resultDiv.className = 'status success';
+                    
+                    detailsDiv.textContent = JSON.stringify(data.env, null, 2);
+                    detailsDiv.className = 'result';
+                } else {
+                    resultDiv.textContent = '❌ Failed to check environment';
+                    resultDiv.className = 'status error';
+                    
+                    detailsDiv.textContent = JSON.stringify(data, null, 2);
+                    detailsDiv.className = 'result';
+                }
             } catch (error) {
                 resultDiv.textContent = `❌ Error checking environment: ${error.message}`;
                 resultDiv.className = 'status error';
@@ -199,11 +208,10 @@
             detailsDiv.className = 'result hidden';
             
             try {
-                // Create a small test file for debugging
+                // Create a small test file for debugging (limit to 100KB)
                 const reader = new FileReader();
                 reader.onload = async function(e) {
-                    // Only use first 10KB of the file for testing
-                    const base64File = e.target.result.split(',')[1].substring(0, 10000);
+                    const base64File = e.target.result.split(',')[1].substring(0, 137000); // ~100KB
                     
                     const response = await fetch('/.netlify/functions/process-and-pay', {
                         method: 'POST',

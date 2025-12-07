@@ -58,6 +58,7 @@
                         const url = window.URL.createObjectURL(blob);
                         downloadLink.href = url;
                         downloadLink.download = 'document_reparat.pdf';
+                        downloadLink.textContent = 'Descarcă PDF-ul reparat';
                         downloadLink.classList.remove('hidden');
                         
                         // Auto-click download after 5 seconds

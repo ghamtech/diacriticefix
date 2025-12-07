@@ -17,10 +17,10 @@
     <link rel="stylesheet" href="style.css">
     <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml">
     <link rel="icon" type="image/png" href="favicon.png">
-    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <!-- Stripe.js -->
+    <script src="https://js.stripe.com/v3/"></script>
 </head>
 <body>
-    <!-- Existing header and hero sections remain the same -->
     <header>
         <div class="container header-content">
             <div class="logo">
@@ -94,64 +94,128 @@
             <div id="uploadStatus" class="upload-status hidden">
                 <p>✅ Fișierul <span id="statusFileName">Document.pdf</span> a fost încărcat cu succes!</p>
             </div>
-            
-            <div id="processingStatus" class="processing-status hidden">
-                <div class="spinner"></div>
-                <p id="processingMessage">Se procesează fișierul... 0%</p>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressFill"></div>
-                </div>
-                <p class="help-text">
-                    <i class="fas fa-exclamation-circle"></i> 
-                    Procesarea poate dura până la 30 de secunde pentru fișiere mari.
-                </p>
-            </div>
+        </div>
+        
+        <div class="payment-container hidden" id="paymentContainer">
+            <h3>Completează plata pentru a descărca PDF-ul reparat</h3>
+            <button class="btn" id="payButton">Plătește 1.99€ cu cardul</button>
+            <p class="small-text">Plata securizată prin Stripe. Acceptăm toate cardurile majore.</p>
         </div>
         
         <div class="disclaimer">
-            <strong>Important:</strong> Procesul de reparare necesită acceptarea Termenilor și Condițiilor și a Politicii de Confidențialitate. După procesare, veți fi redirecționat către pagina de plată.
+            <strong>Important:</strong> Procesul de reparare necesită acceptarea Termenilor și Condițiilor și a Politicii de Confidențialitate.
         </div>
         
-        <!-- Rest of the page content remains the same -->
         <section class="faq" id="faq">
-            <!-- FAQ content as in your original file -->
+            <h2>Întrebări frecvente</h2>
+            
+            <div class="faq-item">
+                <div class="faq-header">
+                    <h3>De ce diacriticele se strică în PDF-uri?</h3>
+                    <span>+</span>
+                </div>
+                <div class="faq-content">
+                    <p>Majoritatea conversiilor PDF strică caracterele românești (ș, ț, â) pentru că folosesc standarde internaționale. Noi reparam manual fiecare caz pentru a asigura corectitudinea.</p>
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-header">
+                    <h3>Este legal să folosesc acest serviciu?</h3>
+                    <span>+</span>
+                </div>
+                <div class="faq-content">
+                    <p>Da! Reparăm doar diacriticele. Toate drepturile asupra documentului rămân ale tale. Conform <a href="https://www.cdep.ro/pls/dosar/legis.act?sec=1&id=10786" target="_blank">Legii 8/1996</a>, nu deținem drepturi asupra conținutului tău.</p>
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-header">
+                    <h3>Ce se întâmplă cu fișierul meu?</h3>
+                    <span>+</span>
+                </div>
+                <div class="faq-content">
+                    <ul>
+                        <li>Fișierul tău este <strong>șters automat în 60 de minute</strong></li>
+                        <li>Nu stocăm textul documentului</li>
+                        <li>Nu transmitem date terților</li>
+                    </ul>
+                </div>
+            </div>
         </section>
         
-        <section id="contact">
-            <!-- Contact content as in your original file -->
+        <section id="contact" style="margin: 50px 0;">
+            <h2 style="text-align: center; color: #1a237e; margin-bottom: 20px;">Contact</h2>
+            <div style="background: white; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); padding: 30px; text-align: left;">
+                <p><strong>GhamTech S.R.L.</strong></p>
+                <p>CUI: 50686976</p>
+                <p>Sediu social: Bacău, România</p>
+                <p>Contact: <a href="mailto:contact@diacriticefix.ro" style="color: #e91e63; text-decoration: none;">contact@diacriticefix.ro</a></p>
+            </div>
         </section>
     </div>
     
-    <!-- Popups and modals remain the same -->
+    <!-- Terms and Conditions Popup -->
     <div class="popup" id="termsPopup">
-        <!-- Terms popup content -->
+        <div class="popup-content">
+            <h2>Termeni și condiții</h2>
+            <p>Serviciul este oferit de <strong>GhamTech S.R.L.</strong> (CUI: 50686976), sediu social în Bacău, România.</p>
+            <p>Prețul de 1.99€ include TVA (21%) conform Legii nr. 227/2015.</p>
+            <p>Fișierul tău este șters automat în 60 de minute după încărcare. Nu stocăm textul documentului și nu transmitem date terților.</p>
+            <p>Reparăm doar diacriticele. Toate drepturile asupra documentului rămân ale tale.</p>
+            <div class="popup-buttons">
+                <button class="btn-disagree" id="disagreeBtn">Nu sunt de acord</button>
+                <button class="btn-agree" id="agreeBtn">Consimtământ</button>
+            </div>
+        </div>
     </div>
     
+    <!-- Privacy Policy Popup -->
     <div class="popup" id="privacyPopup">
-        <!-- Privacy policy popup content -->
-    </div>
-    
-    <div class="gumroad-container" id="gumroadContainer">
-        <script src="https://gumroad.com/js/gumroad.js"></script>
-        <a class="gumroad-button" href="https://ghamtech.gumroad.com/l/DiacriticeFix" data-gumroad-overlay-checkout="true">Descarcă PDF-ul curat (1.49€)</a>
+        <div class="popup-content">
+            <h2>Politica de confidențialitate</h2>
+            <p>La încărcarea documentului, acesta este procesat automat pentru repararea diacriticelor.</p>
+            <p>Fișierul original și versiunea reparată sunt șterse automat în termen de 60 de minute de la procesare.</p>
+            <p>Nu stocăm conținutul textului documentului, doar metadatele necesare procesării (nume fișier, dată încărcare).</p>
+            <p>Nu transmitem datele tale personale sau conținutul documentelor către terțe părți.</p>
+            <div class="popup-buttons">
+                <button class="btn-agree" id="privacyAgreeBtn">Am înțeles</button>
+            </div>
+        </div>
     </div>
     
     <div class="payment-thankyou hidden" id="thankYouPage">
         <h2>Mulțumim pentru plată!</h2>
-        <p>PDF-ul dumneavoastră se va descărca automat în câteva secunde!</p>
+        <p>PDF-ul dumneavoastră se va descărca automat în 5 secunde.</p>
         <a href="#" class="download-link hidden" id="downloadLink">Descarcă acum</a>
     </div>
     
     <footer>
-        <!-- Footer content -->
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>DiacriticeFix</h3>
+                    <p>Repară automat diacriticele din PDF-uri în 15 secunde</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Contact</h3>
+                    <ul>
+                        <li>Email: <a href="mailto:contact@diacriticefix.ro" style="color: #ddd; text-decoration: none;">contact@diacriticefix.ro</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Legal</h3>
+                    <ul>
+                        <li><a href="termeni.html" style="color: #ddd; text-decoration: none;">Termeni și condiții</a></li>
+                        <li><a href="politica.html" style="color: #ddd; text-decoration: none;">Politica de confidențialitate</a></li>
+                    </ul>
+                </div>
+            </div>
+            <p>&copy; 2025 GhamTech S.R.L. | CUI: 50686976 | Sediu: Bacău, România</p>
+        </div>
     </footer>
 
     <script>
-        // Global variables
-        let uploadedFile = null;
-        let userEmail = null;
-        let processingInterval = null;
-        
         // DOM elements
         const pdfUpload = document.getElementById('pdfUpload');
         const browseBtn = document.getElementById('browseBtn');
@@ -159,7 +223,8 @@
         const dropArea = document.getElementById('dropArea');
         const termsPopup = document.getElementById('termsPopup');
         const privacyPopup = document.getElementById('privacyPopup');
-        const gumroadContainer = document.getElementById('gumroadContainer');
+        const paymentContainer = document.getElementById('paymentContainer');
+        const payButton = document.getElementById('payButton');
         const thankYouPage = document.getElementById('thankYouPage');
         const downloadLink = document.getElementById('downloadLink');
         const filePreview = document.getElementById('filePreview');
@@ -168,14 +233,16 @@
         const fileSize = document.getElementById('fileSize');
         const uploadStatus = document.getElementById('uploadStatus');
         const statusFileName = document.getElementById('statusFileName');
-        const processingStatus = document.getElementById('processingStatus');
-        const processingMessage = document.getElementById('processingMessage');
-        const progressFill = document.getElementById('progressFill');
+        let uploadedFile = null;
+        let userEmail = null;
+        
+        // Stripe initialization - REPLACE WITH YOUR ACTUAL PUBLISHABLE KEY
+        const stripe = Stripe('pk_test_your_actual_publishable_key_here');
         
         // Event listeners
         browseBtn.addEventListener('click', () => pdfUpload.click());
         pdfUpload.addEventListener('change', handleFileSelect);
-        repairBtn.addEventListener('click', processPDF);
+        repairBtn.addEventListener('click', showTerms);
         dropArea.addEventListener('dragover', handleDragOver);
         dropArea.addEventListener('dragleave', handleDragLeave);
         dropArea.addEventListener('drop', handleDrop);
@@ -193,17 +260,91 @@
         
         document.getElementById('privacyAgreeBtn').addEventListener('click', () => {
             privacyPopup.classList.remove('active');
-            gumroadContainer.style.display = 'block';
-            document.querySelector('.gumroad-button').click();
+            collectUserEmail();
         });
         
+        // Collect user email before processing
+        function collectUserEmail() {
+            userEmail = prompt('Introduceți adresa de email unde veți primi PDF-ul reparat:', '');
+            
+            if (!userEmail || !userEmail.includes('@')) {
+                alert('Vă rugăm să introduceți o adresă de email validă.');
+                privacyPopup.classList.add('active');
+                return;
+            }
+            
+            processAndPrepareForPayment();
+        }
+        
+        // PDF processing and payment preparation
+        async function processAndPrepareForPayment() {
+            if (!uploadedFile) {
+                alert('Vă rugăm să încărcați un fișier PDF!');
+                return;
+            }
+            
+            try {
+                // Show processing state
+                repairBtn.disabled = true;
+                repairBtn.textContent = 'Se procesează...';
+                repairBtn.classList.add('btn-processing');
+                
+                // Create FormData object
+                const reader = new FileReader();
+                reader.onload = async function(e) {
+                    const base64File = e.target.result.split(',')[1]; // Remove data URL prefix
+                    
+                    // Send to Netlify function for processing and payment
+                    const response = await fetch('/.netlify/functions/process-and-pay', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            fileData: base64File,
+                            fileName: uploadedFile.name,
+                            userEmail: userEmail
+                        })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (!response.ok) {
+                        throw new Error(result.error || 'A apărut o eroare la procesarea fișierului');
+                    }
+                    
+                    // Store file ID
+                    const fileId = result.fileId;
+                    
+                    // Show payment button
+                    paymentContainer.classList.remove('hidden');
+                    document.querySelector('.upload-section').style.display = 'none';
+                    
+                    // Set up payment button
+                    payButton.onclick = function() {
+                        window.location.href = result.paymentUrl;
+                    };
+                };
+                
+                reader.readAsDataURL(uploadedFile);
+                
+            } catch (error) {
+                console.error('Error processing PDF:', error);
+                alert('A apărut o eroare la procesarea fișierului. Vă rugăm să încercați din nou.\n\n' + error.message);
+                repairBtn.disabled = false;
+                repairBtn.textContent = 'Repară PDF-ul acum';
+                repairBtn.classList.remove('btn-processing');
+            }
+        }
+        
+        // File handling functions
         function handleFileSelect(e) {
             const file = e.target.files[0];
             if (file && file.type === 'application/pdf') {
                 handleFileUpload(file);
             } else if (file) {
                 alert('Vă rugăm să încărcați un fișier PDF valid!');
-                repairBtn.disabled = true;
+                pdfUpload.value = '';
             }
         }
         
@@ -268,62 +409,13 @@
             dropArea.classList.remove('drag-over');
         }
         
-        // Main PDF processing function with error handling
-        async function processPDF(e) {
+        function showTerms(e) {
             e.preventDefault();
-            
             if (!uploadedFile) {
                 alert('Vă rugăm să încărcați un fișier PDF!');
                 return;
             }
-            
-            // Show terms popup
             termsPopup.classList.add('active');
-            
-            // In a real implementation, this would call the Netlify function
-            // Let's simulate the processing with proper feedback
-            simulateProcessing();
-        }
-        
-        function simulateProcessing() {
-            // Hide upload status, show processing status
-            uploadStatus.classList.add('hidden');
-            processingStatus.classList.remove('hidden');
-            repairBtn.disabled = true;
-            repairBtn.textContent = 'Se procesează...';
-            
-            // Reset progress
-            let progress = 0;
-            progressFill.style.width = '0%';
-            processingMessage.textContent = 'Se procesează fișierul... 0%';
-            
-            // Simulate progress
-            processingInterval = setInterval(() => {
-                progress += Math.random() * 5;
-                if (progress > 95) progress = 95;
-                
-                progressFill.style.width = `${progress}%`;
-                processingMessage.textContent = `Se procesează fișierul... ${Math.floor(progress)}%`;
-            }, 300);
-            
-            // Simulate API call
-            setTimeout(() => {
-                clearInterval(processingInterval);
-                
-                // Simulate successful processing
-                progressFill.style.width = '100%';
-                processingMessage.textContent = 'Se procesează fișierul... 100%';
-                
-                setTimeout(() => {
-                    processingStatus.classList.add('hidden');
-                    
-                    // Show success message
-                    alert('PDF-ul a fost procesat cu succes! Veți fi redirecționat către pagina de plată.');
-                    
-                    // Redirect to payment
-                    privacyPopup.classList.add('active');
-                }, 500);
-            }, 3000);
         }
         
         // FAQ toggle
@@ -347,87 +439,27 @@
             });
         });
         
-        // Handle Gumroad payment completion
-        window.addEventListener('gumroad_ready', function() {
-            Gumroad.addEventListener('purchase', function(purchase) {
-                if (purchase.product_permalink === 'DiacriticeFix') {
-                    // Show thank you page
-                    thankYouPage.classList.remove('hidden');
-                    uploadStatus.classList.add('hidden');
-                    processingStatus.classList.add('hidden');
-                    
-                    // Hide upload section
-                    document.querySelector('.upload-section').style.display = 'none';
-                    
-                    // Simulate download
-                    setTimeout(() => {
-                        downloadLink.click();
-                    }, 2000);
-                }
-            });
-        });
+        // Reset UI after download or on page refresh
+        function resetUploadUI() {
+            filePreview.classList.add('hidden');
+            uploadInstructions.classList.remove('hidden');
+            uploadStatus.classList.add('hidden');
+            dropArea.classList.remove('file-uploaded');
+            repairBtn.disabled = true;
+            repairBtn.textContent = 'Repară PDF-ul acum';
+            repairBtn.classList.remove('btn-processing');
+            pdfUpload.value = '';
+            uploadedFile = null;
+            userEmail = null;
+            paymentContainer.classList.add('hidden');
+        }
         
-        // Download link handler
-        downloadLink.addEventListener('click', function(e) {
-            e.preventDefault();
-            // In real app, this would download the processed PDF
-            alert('PDF-ul reparat se va descărca acum!');
+        // Reset UI if page is refreshed after payment
+        window.addEventListener('beforeunload', function() {
+            if (!thankYouPage.classList.contains('hidden')) {
+                resetUploadUI();
+            }
         });
-        
-        // Add some CSS for the new elements
-        const style = document.createElement('style');
-        style.textContent = `
-            .processing-status {
-                margin: 20px 0;
-                padding: 20px;
-                background: #e3f2fd;
-                border-radius: 8px;
-                text-align: center;
-                border: 1px solid #bbdefb;
-            }
-            
-            .spinner {
-                border: 4px solid rgba(0, 0, 0, 0.1);
-                border-left: 4px solid #e91e63;
-                border-radius: 50%;
-                width: 30px;
-                height: 30px;
-                margin: 0 auto 15px;
-                animation: spin 1s linear infinite;
-            }
-            
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-            
-            .progress-bar {
-                width: 100%;
-                height: 8px;
-                background-color: #e0e0e0;
-                border-radius: 4px;
-                margin: 10px 0;
-                overflow: hidden;
-            }
-            
-            .progress-fill {
-                height: 100%;
-                background-color: #2196F3;
-                width: 0%;
-                transition: width 0.3s ease;
-            }
-            
-            .help-text {
-                color: #666;
-                font-size: 0.9rem;
-                margin-top: 10px;
-            }
-            
-            .hidden {
-                display: none;
-            }
-        `;
-        document.head.appendChild(style);
     </script>
 </body>
 </html>
