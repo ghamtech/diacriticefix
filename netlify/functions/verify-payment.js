@@ -2,7 +2,7 @@ const Stripe = require('stripe');
 const { v4: uuidv4 } = require('uuid');
 
 // Initialize Stripe with the secret key
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 exports.handler = async (event, context) => {
     try {
@@ -83,7 +83,7 @@ exports.handler = async (event, context) => {
                 body: JSON.stringify({ 
                     success: true, 
                     fileId: fileId,
-                    fileName: session.metadata?.fileName || 'document_reparat.pdf'
+                    fileName: session.metadata?.fileName || 'document_reparat.txt'
                 })
             };
             

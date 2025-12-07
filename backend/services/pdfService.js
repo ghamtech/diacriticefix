@@ -11,9 +11,6 @@ class PdfService {
         };
     }
     
-    /**
-     * Simple diacritic fixing function that works as a fallback
-     */
     fixDiacriticsSimple(text) {
         const replacements = [
             { from: 'Ã£Æ\'Â¢', to: 'â' },
@@ -53,57 +50,31 @@ class PdfService {
         return fixedText;
     }
 
-    /**
-     * Test if PDF.co API is working
-     */
-    async testApiConnection() {
-        try {
-            const response = await axios.post(
-                `${this.baseUrl}/info`,
-                {},
-                { headers: this.headers, timeout: 5000 }
-            );
-            
-            console.log('PDF.co API connection successful:', response.data);
-            return { success: true, data: response.data };
-        } catch (error) {
-            console.error('PDF.co API connection failed:', error.response?.data || error.message);
-            return { 
-                success: false, 
-                error: error.response?.data?.message || error.message,
-                status: error.response?.status
-            };
-        }
-    }
-
-    /**
-     * Process PDF file with fallback options
-     */
-    // Add this method to your PdfService class
     async extractTextFromBase64(base64File) {
         try {
             const response = await axios.post(
                 `${this.baseUrl}/pdf/extract/text`,
-                    {
-                    url: `data:application/pdf;base64,${base64File}`,
+                {
+                    url: `application/pdf;base64,${base64File}`,
                     inline: true
-                    },
-                    { 
+                },
+                { 
                     headers: this.headers,
                     timeout: 30000 // 30 seconds timeout
-                    }
-                );
-        
-                if (response.data.error) {
+                }
+            );
+            
+            if (response.data.error) {
                 throw new Error(response.data.message || 'Error extracting text from PDF');
             }
-        
+            
             return response.data.text;
         } catch (error) {
-                console.error('Error extracting text:', error);
+            console.error('Error extracting text:', error);
             throw error;
         }
     }
+
     async processPdfFile(fileBuffer, userEmail, fileName) {
         try {
             console.log('Starting PDF processing for file:', fileName);
@@ -114,58 +85,39 @@ class PdfService {
             
             // First try to extract text
             console.log('Attempting text extraction...');
-            const extractResponse = await axios.post(
-                `${this.baseUrl}/pdf/extract/text`,
-                {
-                    url: `data:application/pdf;base64,${base64File}`,
-                    inline: true
-                },
-                { 
-                    headers: this.headers,
-                    timeout: 30000 // 30 seconds timeout
-                }
-            );
+            const originalText = await this.extractTextFromBase64(base64File);
             
             console.log('Text extraction response received');
-            
-            if (extractResponse.data.error) {
-                throw new Error(extractResponse.data.message || 'Error extracting text from PDF');
-            }
-            
             console.log('Text successfully extracted, fixing diacritics...');
-            const originalText = extractResponse.data.text;
             const fixedText = this.fixDiacriticsSimple(originalText);
             
             console.log('Diacritics fixed. Comparison:');
             console.log('Original text length:', originalText.length);
             console.log('Fixed text length:', fixedText.length);
             
-            // Log first 100 characters of both texts for debugging
-            console.log('Original text sample:', originalText.substring(0, 100));
-            console.log('Fixed text sample:', fixedText.substring(0, 100));
+            // Create a simple text response (in a real app, this would rebuild the PDF)
+            const processedContent = `
+PDF cu diacritice reparate
+===============================
+
+Fișier original: ${fileName}
+Email utilizator: ${userEmail}
+Data procesării: ${new Date().toISOString()}
+
+Text original (primele 500 de caractere):
+${originalText.substring(0, 500)}
+
+Text cu diacritice reparate (primele 500 de caractere):
+${fixedText.substring(0, 500)}
+            `;
             
-            // If text is too short, use fallback approach
-            if (fixedText.length < 10) {
-                console.warn('Text extraction returned very short content, using fallback method');
-                return {
-                    fileId: uuidv4(),
-                    processedText: fixedText,
-                    isFallback: true,
-                    fileName: fileName,
-                    userEmail: userEmail
-                };
-            }
-            
-            // If text is unchanged after fixing, log a warning
-            if (originalText === fixedText) {
-                console.warn('No diacritics were fixed, original text equals fixed text');
-            }
+            // Simulate PDF content (in a real app, this would be the actual PDF buffer)
+            const processedBuffer = Buffer.from(processedContent, 'utf8');
             
             console.log('PDF processing completed successfully');
             return {
                 fileId: uuidv4(),
-                processedText: fixedText,
-                isFallback: false,
+                processedPdf: processedBuffer,
                 fileName: fileName,
                 userEmail: userEmail
             };
@@ -181,32 +133,13 @@ class PdfService {
             // Return a fallback result so the user can still proceed
             return {
                 fileId: uuidv4(),
-                processedText: 'Error processing PDF. Please try again or contact support.',
-                isFallback: true,
-                error: error.message,
+                processedPdf: Buffer.from('Eroare la procesarea PDF-ului. Vă rugăm să contactați suportul.'),
                 fileName: fileName,
-                userEmail: userEmail
+                userEmail: userEmail,
+                error: error.message
             };
-        }
-    }
-
-    /**
-     * Fallback method to create a new PDF with the fixed text
-     */
-    async createPdfFromText(textContent, originalFileName) {
-        try {
-            // For now, just return the text content
-            // In a real implementation, this would use PDF.co or another service to create a PDF
-            return {
-                fileId: uuidv4(),
-                content: textContent,
-                fileName: originalFileName.replace('.pdf', '_reparat.txt')
-            };
-        } catch (error) {
-            console.error('Error creating PDF from text:', error);
-            throw error;
         }
     }
 }
 
-module.exports = new PdfService();
+module.exports = PdfService; // Export the class itself, not an instance

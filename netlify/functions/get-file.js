@@ -39,7 +39,7 @@ exports.handler = async (event, context) => {
         console.log('Getting file:', fileId);
         
         // Get file path
-        const filePath = path.join(tmpDir, `${fileId}.pdf`);
+        const filePath = path.join(tmpDir, `${fileId}.txt`); // Using .txt for testing
         
         if (!fs.existsSync(filePath)) {
             console.log('File not found:', filePath);
@@ -58,12 +58,12 @@ exports.handler = async (event, context) => {
         console.log('File deleted after reading:', fileId);
         
         // Get filename from metadata or use default
-        const fileName = `document_reparat.pdf`;
+        const fileName = `document_reparat.txt`;
         
         return {
             statusCode: 200,
             headers: {
-                'Content-Type': 'application/pdf',
+                'Content-Type': 'text/plain',
                 'Content-Disposition': `attachment; filename="${fileName}"`
             },
             body: fileContent.toString('base64'),

@@ -125,7 +125,7 @@
                     <span>+</span>
                 </div>
                 <div class="faq-content">
-                    <p>Da! Reparăm doar diacriticele. Toate drepturile asupra documentului rămân ale tale. Conform <a href="https://www.cdep.ro/pls/dosar/legis.act?sec=1&id=10786" target="_blank">Legii 8/1996</a>, nu deținem drepturi asupra conținutului tău.</p>
+                    <p>Da! Reparăm doar diacriticile. Toate drepturile asupra documentului rămân ale tale. Conform <a href="https://www.cdep.ro/pls/dosar/legis.act?sec=1&id=10786" target="_blank">Legii 8/1996</a>, nu deținem drepturi asupra conținutului tău.</p>
                 </div>
             </div>
             
@@ -187,7 +187,7 @@
     <div class="payment-thankyou hidden" id="thankYouPage">
         <h2>Mulțumim pentru plată!</h2>
         <p>PDF-ul dumneavoastră se va descărca automat în 5 secunde.</p>
-        <a href="#" class="download-link hidden" id="downloadLink">Descarcă acum</a>
+        <a href="#" class="download-link hidden" id="downloadLink">Descarcă PDF-ul reparat</a>
     </div>
     
     <footer>
@@ -236,8 +236,8 @@
         let uploadedFile = null;
         let userEmail = null;
         
-        // Stripe initialization - REPLACE WITH YOUR ACTUAL PUBLISHABLE KEY
-        const stripe = Stripe('pk_test_your_actual_publishable_key_here');
+        // Stripe initialization
+        const stripe = Stripe('pk_live_51SbKtIRvhJNCyR7MHEJZnVmJW1kgGTc6KysHLY45PzkLBTv6FrhomUbuyiN3mZbIOKOW3YlS8ksDeYqkIZR25Pyq006CJY9pzw'); // REPLACE WITH YOUR ACTUAL PUBLISHABLE KEY
         
         // Event listeners
         browseBtn.addEventListener('click', () => pdfUpload.click());
@@ -287,7 +287,19 @@
                 // Show processing state
                 repairBtn.disabled = true;
                 repairBtn.textContent = 'Se procesează...';
-                repairBtn.classList.add('btn-processing');
+                repairBtn.classList.add('btn-processing', 'hidden');
+                document.querySelector('.upload-section').innerHTML = `
+                    <div class="processing-status">
+                        <div class="spinner"></div>
+                        <p>Se procesează fișierul... 0%</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                        </div>
+                        <p class="help-text">
+                            ⚠️ Procesarea poate dura până la 30 de secunde pentru fișiere mari.
+                        </p>
+                    </div>
+                `;
                 
                 // Create FormData object
                 const reader = new FileReader();
@@ -308,8 +320,9 @@
                     });
                     
                     const result = await response.json();
+                    console.log('API Response:', result);
                     
-                    if (!response.ok) {
+                    if (!response.ok || !result.success) {
                         throw new Error(result.error || 'A apărut o eroare la procesarea fișierului');
                     }
                     
@@ -317,13 +330,16 @@
                     const fileId = result.fileId;
                     
                     // Show payment button
-                    paymentContainer.classList.remove('hidden');
-                    document.querySelector('.upload-section').style.display = 'none';
+                    document.querySelector('.processing-status').innerHTML = `
+                        <h3 style="color: #1a237e; margin-bottom: 20px;">Fișierul a fost procesat cu succes!</h3>
+                        <button class="btn" id="payButton" style="margin-top: 20px;">Plătește 1.99€ și descarcă PDF-ul</button>
+                        <p class="small-text" style="margin-top: 10px;">Plata securizată prin Stripe. Acceptăm toate cardurile majore.</p>
+                    `;
                     
                     // Set up payment button
-                    payButton.onclick = function() {
+                    document.getElementById('payButton').addEventListener('click', function() {
                         window.location.href = result.paymentUrl;
-                    };
+                    });
                 };
                 
                 reader.readAsDataURL(uploadedFile);
@@ -333,7 +349,8 @@
                 alert('A apărut o eroare la procesarea fișierului. Vă rugăm să încercați din nou.\n\n' + error.message);
                 repairBtn.disabled = false;
                 repairBtn.textContent = 'Repară PDF-ul acum';
-                repairBtn.classList.remove('btn-processing');
+                repairBtn.classList.remove('btn-processing', 'hidden');
+                document.querySelector('.upload-section').style.display = 'block';
             }
         }
         
@@ -447,11 +464,11 @@
             dropArea.classList.remove('file-uploaded');
             repairBtn.disabled = true;
             repairBtn.textContent = 'Repară PDF-ul acum';
-            repairBtn.classList.remove('btn-processing');
+            repairBtn.classList.remove('btn-processing', 'hidden');
+            document.querySelector('.upload-section').style.display = 'block';
             pdfUpload.value = '';
             uploadedFile = null;
             userEmail = null;
-            paymentContainer.classList.add('hidden');
         }
         
         // Reset UI if page is refreshed after payment
