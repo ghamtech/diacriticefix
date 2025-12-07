@@ -79,6 +79,31 @@ class PdfService {
     /**
      * Process PDF file with fallback options
      */
+    // Add this method to your PdfService class
+    async extractTextFromBase64(base64File) {
+        try {
+            const response = await axios.post(
+                `${this.baseUrl}/pdf/extract/text`,
+                    {
+                    url: `data:application/pdf;base64,${base64File}`,
+                    inline: true
+                    },
+                    { 
+                    headers: this.headers,
+                    timeout: 30000 // 30 seconds timeout
+                    }
+                );
+        
+                if (response.data.error) {
+                throw new Error(response.data.message || 'Error extracting text from PDF');
+            }
+        
+            return response.data.text;
+        } catch (error) {
+                console.error('Error extracting text:', error);
+            throw error;
+        }
+    }
     async processPdfFile(fileBuffer, userEmail, fileName) {
         try {
             console.log('Starting PDF processing for file:', fileName);
