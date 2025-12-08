@@ -103,6 +103,13 @@ exports.handler = async (event, context) => {
       
     } catch (processingError) {
       console.error('Error during file processing:', processingError);
+      console.error('Error details:', {
+        message: processingError.message,
+        stack: processingError.stack,
+        response: processingError.response?.data,
+        config: processingError.config?.url
+      });
+      
       return {
         statusCode: 200, // Still return 200 so the frontend can proceed
         headers,
@@ -127,7 +134,8 @@ exports.handler = async (event, context) => {
       },
       body: JSON.stringify({
         error: 'Server error',
-        message: error.message
+        message: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       })
     };
   }

@@ -18,7 +18,6 @@ exports.handler = async (event, context) => {
         
         // Test PDF.co API connection
         try {
-            // Create instance of PdfService
             const pdfService = new PdfService();
             
             // Create a simple test string to extract text from
@@ -35,19 +34,22 @@ exports.handler = async (event, context) => {
                 body: JSON.stringify({
                     success: true,
                     message: 'API connection successful',
-                    extractedText: extractedText
+                    extractedText: extractedText.substring(0, 100) + '...' // Show first 100 chars
                 })
             };
         } catch (error) {
             console.error('PDF.co API connection failed:', error);
             console.error('Error details:', error.response?.data || error.message);
+            console.error('Request URL:', error.config?.url);
             
             return {
                 statusCode: 200,
                 body: JSON.stringify({
                     success: false,
                     error: error.response?.data?.message || error.message,
-                    status: error.response?.status
+                    status: error.response?.status,
+                    url: error.config?.url,
+                    requestData: error.config?.data
                 })
             };
         }
