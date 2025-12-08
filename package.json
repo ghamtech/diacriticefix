@@ -10,7 +10,7 @@
   "license": "MIT",
   "dependencies": {
     "axios": "^1.6.8",
-    "stripe": "^8.225.0",
+    "stripe": "^14.15.0",
     "uuid": "^9.0.1"
   }
 }

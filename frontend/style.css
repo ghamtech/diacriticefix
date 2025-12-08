@@ -122,27 +122,6 @@ nav ul li a {
     color: #1a237e;
 }
 
-.payment-container {
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-    padding: 30px;
-    text-align: center;
-    margin: 30px 0;
-    border: 2px solid #4CAF50;
-}
-
-.payment-container h3 {
-    color: #1a237e;
-    margin-bottom: 20px;
-}
-
-.small-text {
-    color: #666;
-    font-size: 0.9rem;
-    margin-top: 10px;
-}
-
 .upload-area {
     border: 2px dashed #e91e63;
     border-radius: 10px;
@@ -613,57 +592,6 @@ footer {
     font-weight: 500;
 }
 
-/* Processing status */
-.processing-status {
-    margin: 20px 0;
-    padding: 20px;
-    background: #e3f2fd;
-    border-radius: 8px;
-    text-align: center;
-    border: 1px solid #bbdefb;
-}
-
-.spinner {
-    border: 4px solid rgba(0, 0, 0, 0.1);
-    border-left: 4px solid #e91e63;
-    border-radius: 50%;
-    width: 30px;
-    height: 30px;
-    margin: 0 auto 15px;
-    animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-.progress-bar {
-    width: 100%;
-    height: 8px;
-    background-color: #e0e0e0;
-    border-radius: 4px;
-    margin: 10px 0;
-    overflow: hidden;
-}
-
-.progress-fill {
-    height: 100%;
-    background-color: #2196F3;
-    width: 0%;
-    transition: width 0.3s ease;
-}
-
-.help-text {
-    color: #666;
-    font-size: 0.9rem;
-    margin-top: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
-}
-
 /* Responsive styles */
 @media (max-width: 768px) {
     .document-content {
@@ -688,10 +616,6 @@ footer {
     }
     
     .popup-content {
-        padding: 20px;
-    }
-    
-    .payment-container {
         padding: 20px;
     }
 }

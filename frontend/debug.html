@@ -72,7 +72,6 @@
         <div class="container header-content">
             <div class="logo">
                 <img src="logo.png" alt="DiacriticeFix Logo" class="logo-img">
-                <h1>DiacriticeFix Debug</h1>
             </div>
         </div>
     </header>
@@ -123,8 +122,8 @@
                 const response = await fetch('/.netlify/functions/test-api');
                 const data = await response.json();
                 
-                if (response.ok && data.success) {
-                    resultDiv.textContent = '✅ PDF.co API connection successful!';
+                if (data.success) {
+                    resultDiv.textContent = '✅ API connection and text extraction successful!';
                     resultDiv.className = 'status success';
                     
                     detailsDiv.textContent = JSON.stringify(data, null, 2);
@@ -154,11 +153,10 @@
             detailsDiv.className = 'result hidden';
             
             try {
-                // Fetch from Netlify function instead of using process.env (which doesn't exist in browser)
                 const response = await fetch('/.netlify/functions/check-env');
                 const data = await response.json();
                 
-                if (response.ok && data.success) {
+                if (data.success) {
                     resultDiv.textContent = '✅ Environment variables loaded';
                     resultDiv.className = 'status success';
                     
@@ -208,10 +206,11 @@
             detailsDiv.className = 'result hidden';
             
             try {
-                // Create a small test file for debugging (limit to 100KB)
+                // Create a small test file for debugging
                 const reader = new FileReader();
                 reader.onload = async function(e) {
-                    const base64File = e.target.result.split(',')[1].substring(0, 137000); // ~100KB
+                    // Only use first part of the file for testing
+                    const base64File = e.target.result.split(',')[1].substring(0, 100000); // ~100KB
                     
                     const response = await fetch('/.netlify/functions/process-and-pay', {
                         method: 'POST',
@@ -227,7 +226,7 @@
                     
                     const data = await response.json();
                     
-                    if (response.ok && data.success) {
+                    if (data.success) {
                         resultDiv.textContent = '✅ PDF processed successfully!';
                         resultDiv.className = 'status success';
                         

@@ -10,67 +10,48 @@ class PdfService {
             'x-api-key': this.apiKey
         };
     }
-    
-    fixDiacriticsSimple(text) {
-        const replacements = [
-            { from: 'Ã£Æ\'Â¢', to: 'â' },
-            { from: 'Ã£Æ\'â€ž', to: 'ă' },
-            { from: 'Ã£Æ\'Ë†', to: 'î' },
-            { from: 'Ã£Æ\'Åž', to: 'ș' },
-            { from: 'Ã£Æ\'Å¢', to: 'ț' },
-            { from: 'Ã£Æ\'Ëœ', to: 'Ș' },
-            { from: 'Ã£Æ\'Å£', to: 'Ț' },
-            { from: 'Æ\'', to: 'ș' },
-            { from: 'â€žÆ\'', to: 'ă' },
-            { from: 'Ã¢', to: 'â' },
-            { from: 'Â¢', to: '' },
-            { from: 'â€', to: '' },
-            { from: 'â€œ', to: '"' },
-            { from: 'â€', to: '"' },
-            { from: 'ÅŸ', to: 'ș' },
-            { from: 'Å£', to: 'ț' },
-            { from: 'Äƒ', to: 'ă' },
-            { from: 'Ã®', to: 'î' },
-            { from: 'Ã£', to: 'ă' },
-            { from: 'Ä‚', to: 'Ă' },
-            { from: 'È™', to: 'ș' },
-            { from: 'È›', to: 'ț' },
-            { from: 'Ä°', to: 'İ' },
-            { from: 'Åž', to: 'Ș' },
-            { from: 'Å¢', to: 'Ț' }
-        ];
-        
+
+    fixDiacritics(text) {
+        const brokenDiacritics = {
+            'Ã£Æ\'Â¢': 'â',
+            'Ã£Æ\'â€ž': 'ă',
+            'Ã£Æ\'Ë†': 'î',
+            'Ã£Æ\'Åž': 'ș',
+            'Ã£Æ\'Å¢': 'ț',
+            'Ã£Æ\'Ëœ': 'Ș',
+            'Ã£Æ\'Å£': 'Ț',
+            'â€žÆ\'': 'ă',
+            'Ð”': 'D',
+            'Ð¸': 'i',
+            'Ðµ': 'e'
+        };
+
         let fixedText = text;
-        
-        replacements.forEach(({from, to}) => {
-            const regex = new RegExp(from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
-            fixedText = fixedText.replace(regex, to);
+        Object.entries(brokenDiacritics).forEach(([bad, good]) => {
+            const regex = new RegExp(bad.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+            fixedText = fixedText.replace(regex, good);
         });
-        
+
         return fixedText;
     }
 
-    async extractTextFromBase64(base64File) {
+    async extractText(fileData) {
         try {
             const response = await axios.post(
                 `${this.baseUrl}/pdf/extract/text`,
                 {
-                    url: `application/pdf;base64,${base64File}`,
+                    url: `data:application/pdf;base64,${fileData}`,
                     inline: true
                 },
-                { 
+                {
                     headers: this.headers,
-                    timeout: 30000 // 30 seconds timeout
+                    timeout: 60000
                 }
             );
-            
-            if (response.data.error) {
-                throw new Error(response.data.message || 'Error extracting text from PDF');
-            }
-            
+
             return response.data.text;
         } catch (error) {
-            console.error('Error extracting text:', error);
+            console.error('Error extracting text:', error.response?.data || error.message);
             throw error;
         }
     }
@@ -81,43 +62,27 @@ class PdfService {
             
             // Convert buffer to base64
             const base64File = fileBuffer.toString('base64');
-            console.log('Base64 conversion complete, starting text extraction...');
+            console.log('Base64 conversion complete');
             
-            // First try to extract text
+            // Extract text from PDF
             console.log('Attempting text extraction...');
-            const originalText = await this.extractTextFromBase64(base64File);
+            const extractedText = await this.extractText(base64File);
+            console.log('Text extraction completed');
             
-            console.log('Text extraction response received');
-            console.log('Text successfully extracted, fixing diacritics...');
-            const fixedText = this.fixDiacriticsSimple(originalText);
+            // Fix diacritics
+            console.log('Fixing diacritics...');
+            const fixedText = this.fixDiacritics(extractedText);
+            console.log('Diacritics fixed');
             
-            console.log('Diacritics fixed. Comparison:');
-            console.log('Original text length:', originalText.length);
-            console.log('Fixed text length:', fixedText.length);
-            
-            // Create a simple text response (in a real app, this would rebuild the PDF)
-            const processedContent = `
-PDF cu diacritice reparate
-===============================
-
-Fișier original: ${fileName}
-Email utilizator: ${userEmail}
-Data procesării: ${new Date().toISOString()}
-
-Text original (primele 500 de caractere):
-${originalText.substring(0, 500)}
-
-Text cu diacritice reparate (primele 500 de caractere):
-${fixedText.substring(0, 500)}
-            `;
-            
-            // Simulate PDF content (in a real app, this would be the actual PDF buffer)
-            const processedBuffer = Buffer.from(processedContent, 'utf8');
+            // For now, we'll create a simple text file with the fixed content
+            // In production, you would use PDF.co's PDF generation API
+            const fileId = uuidv4();
+            const fixedContent = `PDF repaired successfully!\nOriginal file: ${fileName}\nEmail: ${userEmail}\n\nOriginal text (first 500 chars):\n${extractedText.substring(0, 500)}\n\nFixed text (first 500 chars):\n${fixedText.substring(0, 500)}`;
             
             console.log('PDF processing completed successfully');
             return {
-                fileId: uuidv4(),
-                processedPdf: processedBuffer,
+                fileId: fileId,
+                processedText: fixedContent,
                 fileName: fileName,
                 userEmail: userEmail
             };
@@ -133,7 +98,7 @@ ${fixedText.substring(0, 500)}
             // Return a fallback result so the user can still proceed
             return {
                 fileId: uuidv4(),
-                processedPdf: Buffer.from('Eroare la procesarea PDF-ului. Vă rugăm să contactați suportul.'),
+                processedText: 'Error processing PDF. Please contact support.',
                 fileName: fileName,
                 userEmail: userEmail,
                 error: error.message
