@@ -20,11 +20,11 @@ exports.handler = async (event, context) => {
         try {
             const pdfService = new PdfService();
             
-            // Create a simple test string to extract text from
+            // Create a simple test PDF content (base64 encoded)
             const testText = "Test PDF with diacritics: ș, ț, â, î, ă";
             const testPdfContent = Buffer.from(testText).toString('base64');
             
-            // Use the correct method name
+            // Use the corrected extractText method
             const extractedText = await pdfService.extractText(testPdfContent);
             
             console.log('PDF.co API connection successful, extracted text:', extractedText);

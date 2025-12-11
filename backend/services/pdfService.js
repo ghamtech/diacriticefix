@@ -36,13 +36,14 @@ class PdfService {
         return textToFix;
     }
 
+    // CORRECTED: Use the proper endpoint and parameter for PDF.co
     async extractText(fileData) {
         try {
-            // This is the CORRECT endpoint for PDF.co
+            // PDF.co requires base64 parameter, not a data URL
             const response = await axios.post(
-                `${this.baseUrl}/pdf/info`,
+                `${this.baseUrl}/pdf/extract/text`,
                 {
-                    url: `data:application/pdf;base64,${fileData}`,
+                    base64: fileData,  // Use "base64" parameter instead of "url"
                     inline: true
                 },
                 {
@@ -51,17 +52,7 @@ class PdfService {
                 }
             );
 
-            // Check if response is text or JSON
-            if (typeof response.data === 'string') {
-                // If it's text, return directly
-                return response.data;
-            } else if (response.data && response.data.info) {
-                // If it's JSON with info field
-                return response.data.info;
-            } else {
-                // If it's another format
-                return JSON.stringify(response.data, null, 2);
-            }
+            return response.data.text;
         } catch (error) {
             console.error('Error extracting text:', error.response?.data || error.message);
             throw error;
@@ -72,11 +63,11 @@ class PdfService {
         try {
             console.log('Starting PDF processing for file:', fileName);
             
-            // Convert buffer to base64
+            // Convert buffer to base64 without data URL prefix
             const base64File = fileBuffer.toString('base64');
             console.log('Base64 conversion complete');
             
-            // Extract text from PDF using the correct endpoint
+            // Extract text from PDF using the correct method
             console.log('Attempting text extraction...');
             const extractedText = await this.extractText(base64File);
             console.log('Text extraction completed');

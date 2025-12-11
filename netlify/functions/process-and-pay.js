@@ -1,6 +1,5 @@
 const Stripe = require('stripe');
 const PdfService = require('../../backend/services/pdfService');
-const PaymentService = require('../../backend/services/paymentService');
 const { v4: uuidv4 } = require('uuid');
 
 // Initialize Stripe with the secret key
@@ -82,14 +81,33 @@ exports.handler = async (event, context) => {
       const filePath = path.join(tmpDir, `${processedFile.fileId}.txt`);
       fs.writeFileSync(filePath, processedFile.processedText);
       
-      // Generate download link
-      const downloadLink = PaymentService.generateDownloadLink(
-        processedFile.fileId,
-        userEmail,
-        'manual_' + uuidv4()
-      );
+      // Create Stripe payment session
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [{
+          price_data: {
+            currency: 'eur',
+            product_ {
+              name: 'PDF cu diacritice reparate',
+              description: fileName
+            },
+            unit_amount: 199, // 1.99€ in cents
+          },
+          quantity: 1,
+        }],
+        mode: 'payment',
+        success_url: `${process.env.BASE_URL}/download.html?file_id=${processedFile.fileId}&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.BASE_URL}/?cancelled=true`,
+        client_reference_id: processedFile.fileId,
+        customer_email: userEmail,
+        meta {
+          fileId: processedFile.fileId,
+          fileName: fileName,
+          userEmail: userEmail
+        }
+      });
       
-      console.log('Processing completed successfully');
+      console.log('Stripe session created successfully');
       
       return {
         statusCode: 200,
@@ -97,7 +115,8 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({
           success: true,
           fileId: processedFile.fileId,
-          downloadLink: downloadLink
+          sessionId: session.id,
+          paymentUrl: session.url
         })
       };
       
@@ -116,7 +135,8 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({
           success: true, // Allow the process to continue
           fileId: uuidv4(),
-          downloadLink: `${process.env.BASE_URL}/download.html?error=processing_failed&message=${encodeURIComponent(processingError.message)}`,
+          sessionId: 'error_session_' + Date.now(),
+          paymentUrl: `${process.env.BASE_URL}/download.html?error=processing_failed&message=${encodeURIComponent(processingError.message)}`,
           error: processingError.message,
           isFallback: true
         })
