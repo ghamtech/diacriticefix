@@ -11,7 +11,7 @@ class PdfService {
         };
     }
     
-    fixDiacriticsSimple(text) {
+    fixDiacritics(text) {
         const replacements = [
             { from: 'Ã£Æ\'Â¢', to: 'â' },
             { from: 'Ã£Æ\'â€ž', to: 'ă' },
@@ -20,7 +20,7 @@ class PdfService {
             { from: 'Ã£Æ\'Å¢', to: 'ț' },
             { from: 'Ã£Æ\'Ëœ', to: 'Ș' },
             { from: 'Ã£Æ\'Å£', to: 'Ț' },
-            { from: 'â€žÆ\'', to: 'ă' },
+            { from: 'Ã£â€ž', to: 'ă' },
             { from: 'Ð”', to: 'D' },
             { from: 'Ð¸', to: 'i' },
             { from: 'Ðµ', to: 'e' }
@@ -36,14 +36,12 @@ class PdfService {
         return textToFix;
     }
 
-    // CORRECTED: Use the proper endpoint and parameter for PDF.co
-    async extractText(fileData) {
+    async extractTextFromBase64(base64File) {
         try {
-            // PDF.co requires base64 parameter, not a data URL
             const response = await axios.post(
-                `${this.baseUrl}/pdf/extract/text`,
+                `${this.baseUrl}/pdf/info`,
                 {
-                    base64: fileData,  // Use "base64" parameter instead of "url"
+                    base64: base64File,
                     inline: true
                 },
                 {
@@ -52,7 +50,11 @@ class PdfService {
                 }
             );
 
-            return response.data.text;
+            if (response.data.error) {
+                throw new Error(response.data.message || 'Error extracting text from PDF');
+            }
+            
+            return response.data.info;
         } catch (error) {
             console.error('Error extracting text:', error.response?.data || error.message);
             throw error;
@@ -63,23 +65,29 @@ class PdfService {
         try {
             console.log('Starting PDF processing for file:', fileName);
             
-            // Convert buffer to base64 without data URL prefix
+            // Convert buffer to base64
             const base64File = fileBuffer.toString('base64');
             console.log('Base64 conversion complete');
             
-            // Extract text from PDF using the correct method
+            // Extract text from PDF
             console.log('Attempting text extraction...');
-            const extractedText = await this.extractText(base64File);
-            console.log('Text extraction completed');
+            const originalText = await this.extractTextFromBase64(base64File);
             
-            // Fix diacritics
-            console.log('Fixing diacritics...');
-            const fixedText = this.fixDiacriticsSimple(extractedText);
-            console.log('Diacritics fixed');
+            console.log('Text extraction response received');
+            console.log('Text successfully extracted, fixing diacritics...');
+            const fixedText = this.fixDiacritics(originalText);
             
-            // Create a simple text file with the fixed content
+            console.log('Diacritics fixed. Comparison:');
+            console.log('Original text length:', originalText.length);
+            console.log('Fixed text length:', fixedText.length);
+            
+            // Log first 100 characters of both texts for debugging
+            console.log('Original text sample:', originalText.substring(0, 100));
+            console.log('Fixed text sample:', fixedText.substring(0, 100));
+            
+            // For now, we'll create a simple text file with the fixed content
             const fileId = uuidv4();
-            const fixedContent = `PDF repaired successfully!\nOriginal file: ${fileName}\nEmail: ${userEmail}\n\nOriginal text (first 500 chars):\n${extractedText.substring(0, 500)}\n\nFixed text (first 500 chars):\n${fixedText.substring(0, 500)}`;
+            const fixedContent = `PDF repaired successfully!\nOriginal file: ${fileName}\nEmail: ${userEmail}\n\nOriginal text (first 500 chars):\n${originalText.substring(0, 500)}\n\nFixed text (first 500 chars):\n${fixedText.substring(0, 500)}`;
             
             console.log('PDF processing completed successfully');
             return {
@@ -94,11 +102,10 @@ class PdfService {
             console.error('Error details:', {
                 message: error.message,
                 response: error.response?.data,
-                status: error.response?.status,
-                config: error.config?.url
+                status: error.response?.status
             });
             
-            // Return a fallback result
+            // Return a fallback result so the user can still proceed
             return {
                 fileId: uuidv4(),
                 processedText: 'Error processing PDF. Please contact support.',
@@ -110,4 +117,4 @@ class PdfService {
     }
 }
 
-module.exports = PdfService; // Export the class itself
+module.exports = PdfService; // Export the class itself, not an instance

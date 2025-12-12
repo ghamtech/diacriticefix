@@ -87,7 +87,7 @@ exports.handler = async (event, context) => {
         line_items: [{
           price_data: {
             currency: 'eur',
-            product_ {
+            product_data: {
               name: 'PDF cu diacritice reparate',
               description: fileName
             },
@@ -100,7 +100,7 @@ exports.handler = async (event, context) => {
         cancel_url: `${process.env.BASE_URL}/?cancelled=true`,
         client_reference_id: processedFile.fileId,
         customer_email: userEmail,
-        meta {
+        metadata: {
           fileId: processedFile.fileId,
           fileName: fileName,
           userEmail: userEmail
@@ -122,13 +122,6 @@ exports.handler = async (event, context) => {
       
     } catch (processingError) {
       console.error('Error during file processing:', processingError);
-      console.error('Error details:', {
-        message: processingError.message,
-        stack: processingError.stack,
-        response: processingError.response?.data,
-        config: processingError.config?.url
-      });
-      
       return {
         statusCode: 200, // Still return 200 so the frontend can proceed
         headers,
@@ -154,8 +147,7 @@ exports.handler = async (event, context) => {
       },
       body: JSON.stringify({
         error: 'Server error',
-        message: error.message,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        message: error.message
       })
     };
   }

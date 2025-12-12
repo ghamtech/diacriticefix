@@ -39,7 +39,7 @@ exports.handler = async (event, context) => {
         console.log('Getting file:', fileId);
         
         // Get file path
-        const filePath = path.join(tmpDir, `${fileId}.txt`); // Using .txt for testing
+        const filePath = path.join(tmpDir, `${fileId}.txt`);
         
         if (!fs.existsSync(filePath)) {
             console.log('File not found:', filePath);
@@ -51,7 +51,7 @@ exports.handler = async (event, context) => {
         }
         
         // Read file
-        const fileContent = fs.readFileSync(filePath);
+        const fileContent = fs.readFileSync(filePath, 'utf-8');
         
         // Delete file after reading (cleanup)
         fs.unlinkSync(filePath);
@@ -66,8 +66,7 @@ exports.handler = async (event, context) => {
                 'Content-Type': 'text/plain',
                 'Content-Disposition': `attachment; filename="${fileName}"`
             },
-            body: fileContent.toString('base64'),
-            isBase64Encoded: true
+            body: fileContent
         };
         
     } catch (error) {
