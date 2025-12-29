@@ -20,7 +20,7 @@
         <div class="payment-thankyou" id="thankYouPage">
             <h2>Mulțumim pentru plată!</h2>
             <p>PDF-ul dumneavoastră se va descărca automat în 5 secunde.</p>
-            <a href="#" class="download-link hidden" id="downloadLink">Descarcă acum PDF-ul reparat</a>
+            <a href="#" class="download-link hidden" id="downloadLink">Descarcă PDF-ul reparat</a>
         </div>
     </div>
     
@@ -33,63 +33,67 @@
         document.addEventListener('DOMContentLoaded', function() {
             const urlParams = new URLSearchParams(window.location.search);
             const fileId = urlParams.get('file_id');
-            const email = urlParams.get('email');
-            const transactionId = urlParams.get('transaction_id');
-            const error = urlParams.get('error');
-            const message = urlParams.get('message');
+            const sessionId = urlParams.get('session_id');
             
-            const thankYouPage = document.getElementById('thankYouPage');
-            const downloadLink = document.getElementById('downloadLink');
-            
-            if (error) {
-                thankYouPage.innerHTML = `
-                    <h2>Eroare</h2>
-                    <p>${decodeURIComponent(message || 'A apărut o eroare la procesarea cererii.')}</p>
-                    <p>Vă rugăm să contactați suportul la: <a href="mailto:contact@diacriticefix.ro">contact@diacriticefix.ro</a></p>
-                `;
-                return;
-            }
-            
-            if (!fileId) {
-                thankYouPage.innerHTML = '<h2>Link invalid</h2><p>Link-ul de descărcare este invalid sau a expirat.</p>';
-                return;
-            }
-            
-            // Get the file content
-            fetch(`/.netlify/functions/download-pdf?file_id=${fileId}`)
+            if (fileId && sessionId) {
+                const thankYouPage = document.getElementById('thankYouPage');
+                const downloadLink = document.getElementById('downloadLink');
+                
+                // Verify payment and get file
+                fetch('/.netlify/functions/verify-payment', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ sessionId: sessionId })
+                })
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('Failed to fetch file');
+                        throw new Error('Payment verification failed');
                     }
-                    return response.text();
+                    return response;
                 })
-                .then(content => {
+                .then(response => {
+                    // Get the filename from content disposition header
+                    const contentDisposition = response.headers.get('content-disposition');
+                    let fileName = 'document_reparat.pdf';
+                    
+                    if (contentDisposition) {
+                        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                        const matches = filenameRegex.exec(contentDisposition);
+                        if (matches != null && matches[1]) {
+                            fileName = matches[1].replace(/['"]/g, '');
+                        }
+                    }
+                    
                     // Create download link
-                    const blob = new Blob([content], { type: 'text/plain' });
-                    const url = URL.createObjectURL(blob);
-                    
-                    downloadLink.href = url;
-                    downloadLink.download = 'document_reparat.txt';
-                    downloadLink.classList.remove('hidden');
-                    downloadLink.textContent = 'Descarcă acum PDF-ul reparat';
-                    
-                    // Auto-click download after 5 seconds
-                    setTimeout(() => {
-                        downloadLink.click();
-                        thankYouPage.innerHTML = '<h2>Descărcare finalizată!</h2><p>Poți închide această pagină acum.</p>';
+                    return response.blob().then(blob => {
+                        const url = URL.createObjectURL(blob);
+                        downloadLink.href = url;
+                        downloadLink.download = fileName;
+                        downloadLink.textContent = 'Descarcă PDF-ul reparat';
+                        downloadLink.classList.remove('hidden');
                         
-                        // Clean up
-                        URL.revokeObjectURL(url);
-                    }, 5000);
+                        // Auto-click download after 5 seconds
+                        setTimeout(() => {
+                            downloadLink.click();
+                            thankYouPage.innerHTML = '<h2>Descărcare finalizată!</h2><p>Poți închide această pagină acum.</p>';
+                            
+                            // Clean up
+                            URL.revokeObjectURL(url);
+                        }, 5000);
+                    });
                 })
                 .catch(error => {
                     console.error('Error:', error);
                     thankYouPage.innerHTML = `
                         <h2>Eroare de sistem</h2>
-                        <p>A apărut o eroare la procesarea cererii. Vă rugăm să încercați din nou mai târziu.</p>
-                        <p>Dacă problema persistă, contactați suportul la: <a href="mailto:contact@diacriticefix.ro">contact@diacriticefix.ro</a></p>
+                        <p>A apărut o eroare la procesarea cererii. Vă rugăm să contactați suportul la: <a href="mailto:ghamtech@ghamtech.com">ghamtech@ghamtech.com</a></p>
                     `;
                 });
+            } else {
+                document.getElementById('thankYouPage').innerHTML = '<h2>Link invalid</h2><p>Link-ul de descărcare este invalid sau a expirat.</p>';
+            }
         });
     </script>
 </body>

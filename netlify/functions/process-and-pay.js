@@ -78,8 +78,8 @@ exports.handler = async (event, context) => {
       console.log('PDF processing completed', processedFile);
       
       // Save file temporarily
-      const filePath = path.join(tmpDir, `${processedFile.fileId}.txt`);
-      fs.writeFileSync(filePath, processedFile.processedText);
+      const filePath = path.join(tmpDir, `${processedFile.fileId}.pdf`);
+      fs.writeFileSync(filePath, processedFile.processedPdf);
       
       // Create Stripe payment session
       const session = await stripe.checkout.sessions.create({
@@ -123,15 +123,12 @@ exports.handler = async (event, context) => {
     } catch (processingError) {
       console.error('Error during file processing:', processingError);
       return {
-        statusCode: 200, // Still return 200 so the frontend can proceed
+        statusCode: 500,
         headers,
         body: JSON.stringify({
-          success: true, // Allow the process to continue
-          fileId: uuidv4(),
-          sessionId: 'error_session_' + Date.now(),
-          paymentUrl: `${process.env.BASE_URL}/download.html?error=processing_failed&message=${encodeURIComponent(processingError.message)}`,
-          error: processingError.message,
-          isFallback: true
+          success: false,
+          error: 'Failed to process PDF file',
+          details: processingError.message
         })
       };
     }
