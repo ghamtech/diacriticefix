@@ -1,7 +1,5 @@
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
-const path = require('path');
-const fs = require('fs');
 
 class PdfService {
     constructor() {
@@ -12,9 +10,9 @@ class PdfService {
             'x-api-key': this.apiKey
         };
     }
-    
+
     fixDiacritics(text) {
-        const brokenDiacritics = {
+        const replacements = {
             'Ã£Æ\'Â¢': 'â',
             'Ã£Æ\'â€ž': 'ă',
             'Ã£Æ\'Ë†': 'î',
@@ -22,7 +20,6 @@ class PdfService {
             'Ã£Æ\'Å¢': 'ț',
             'Ã£Æ\'Ëœ': 'Ș',
             'Ã£Æ\'Å£': 'Ț',
-            'Æ\'': 'ș',
             'â€žÆ\'': 'ă',
             'Ã¢': 'â',
             'Â¢': '',
@@ -43,22 +40,20 @@ class PdfService {
         };
         
         let fixedText = text;
-        Object.entries(brokenDiacritics).forEach(([bad, good]) => {
-            const escapedBad = bad.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const regex = new RegExp(escapedBad, 'g');
+        Object.entries(replacements).forEach(([bad, good]) => {
+            const regex = new RegExp(bad.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
             fixedText = fixedText.replace(regex, good);
         });
         
         return fixedText;
     }
-    
-    async extractTextFromBase64(base64File) {
+
+    async extractTextFromUrl(fileUrl) {
         try {
-            // The correct endpoint for PDF.co is /pdf/convert/to/text
             const response = await axios.post(
                 `${this.baseUrl}/pdf/convert/to/text`,
                 {
-                    base64: base64File,
+                    url: fileUrl,
                     inline: true
                 },
                 {
@@ -77,30 +72,52 @@ class PdfService {
             throw error;
         }
     }
-    
+
     async processPdfFile(fileBuffer, userEmail, fileName) {
         try {
             console.log('Starting PDF processing for file:', fileName);
             
             // Convert buffer to base64
             const base64File = fileBuffer.toString('base64');
-            console.log('Base64 conversion complete, starting text extraction...');
+            console.log('Base64 conversion complete');
             
-            // Extract text from PDF
-            console.log('Attempting text extraction with correct endpoint...');
-            const originalText = await this.extractTextFromBase64(base64File);
+            // Use PDF.co's upload endpoint to get a public URL
+            console.log('Uploading file to PDF.co...');
+            const uploadResponse = await axios.post(
+                `${this.baseUrl}/file/upload`,
+                {
+                    name: fileName,
+                    content: base64File
+                },
+                {
+                    headers: this.headers,
+                    timeout: 60000
+                }
+            );
             
+            if (uploadResponse.data.error) {
+                throw new Error(uploadResponse.data.message || 'Error uploading file to PDF.co');
+            }
+            
+            const fileUrl = uploadResponse.data.url;
+            console.log('File uploaded successfully, URL:', fileUrl);
+            
+            // Extract text from PDF using the uploaded URL
+            console.log('Attempting text extraction...');
+            const originalText = await this.extractTextFromUrl(fileUrl);
             console.log('Text extraction completed');
-            console.log('Text successfully extracted, fixing diacritics...');
+            
+            // Fix diacritics
+            console.log('Fixing diacritics...');
             const fixedText = this.fixDiacritics(originalText);
             
             console.log('Diacritics fixed. Comparison:');
             console.log('Original text length:', originalText.length);
             console.log('Fixed text length:', fixedText.length);
             
-            // Create processed PDF content
+            // Create the repaired PDF content
             const fileId = uuidv4();
-            const processedContent = `PDF repaired successfully!
+            const fixedContent = `PDF repaired successfully!
 Original file: ${fileName}
 Email: ${userEmail}
 
@@ -114,7 +131,7 @@ ${fixedText.substring(0, 500)}
             console.log('PDF processing completed successfully');
             return {
                 fileId: fileId,
-                processedPdf: Buffer.from(processedContent, 'utf-8'),
+                processedPdf: Buffer.from(fixedContent, 'utf-8'),
                 fileName: fileName,
                 userEmail: userEmail
             };
@@ -132,7 +149,8 @@ ${fixedText.substring(0, 500)}
                 fileId: uuidv4(),
                 processedPdf: Buffer.from('Error processing PDF. Please try again with a different file or contact support.'),
                 fileName: fileName,
-                userEmail: userEmail
+                userEmail: userEmail,
+                error: error.message
             };
         }
     }

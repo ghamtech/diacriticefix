@@ -73,7 +73,6 @@ exports.handler = async (event, context) => {
       const fileBuffer = Buffer.from(fileData, 'base64');
       
       console.log('File buffer created, size:', fileBuffer.length);
-      console.log('Starting PDF processing...');
       
       const processedFile = await pdfService.processPdfFile(fileBuffer, userEmail, fileName);
       console.log('PDF processing completed', processedFile);
@@ -88,7 +87,7 @@ exports.handler = async (event, context) => {
         line_items: [{
           price_data: {
             currency: 'eur',
-            product_data: {
+            product_ {
               name: 'PDF cu diacritice reparate',
               description: fileName
             },
@@ -101,7 +100,7 @@ exports.handler = async (event, context) => {
         cancel_url: `${process.env.BASE_URL}/?cancelled=true`,
         client_reference_id: processedFile.fileId,
         customer_email: userEmail,
-        metadata: {
+        meta {
           fileId: processedFile.fileId,
           fileName: fileName,
           userEmail: userEmail

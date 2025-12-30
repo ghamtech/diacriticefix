@@ -103,7 +103,7 @@
         </div>
         
         <div class="disclaimer">
-            <strong>Important:</strong> Procesul de reparare necesită acceptarea Termenilor și Condițiilor și a Politicii de Confidențialitate. După procesare, vei fi redirecționat către pagina de plată.
+            <strong>Important:</strong> Procesul de reparare necesită acceptarea Termenilor și Condițiilor și a Politicii de Confidențialitate.
         </div>
         
         <section class="faq" id="faq">
@@ -247,6 +247,8 @@
         dropArea.addEventListener('dragover', handleDragOver);
         dropArea.addEventListener('dragleave', handleDragLeave);
         dropArea.addEventListener('drop', handleDrop);
+        termsPopup.addEventListener('click', closePopup);
+        privacyPopup.addEventListener('click', closePopup);
         
         // Terms and conditions popup
         document.getElementById('agreeBtn').addEventListener('click', () => {
@@ -290,9 +292,6 @@
                 repairBtn.textContent = 'Se procesează...';
                 repairBtn.classList.add('btn-processing');
                 
-                thankYouPage.classList.add('hidden');
-                downloadLink.classList.add('hidden');
-                
                 // Create FormData object
                 const reader = new FileReader();
                 reader.onload = async function(e) {
@@ -325,15 +324,15 @@
                         localStorage.setItem('processedFileId', result.fileId);
                         
                         // Show payment container
-                        thankYouPage.classList.remove('hidden');
-                        thankYouPage.innerHTML = `
-                            <h2>Procesare reușită!</h2>
-                            <p>Fișierul dumneavoastră a fost procesat cu succes și este gata pentru descărcare după plată.</p>
-                            <button class="btn" id="paymentBtn">Plătește 1.99€ și descarcă PDF-ul</button>
+                        paymentContainer.classList.remove('hidden');
+                        paymentContainer.innerHTML = `
+                            <h3>Completează plata pentru a descărca PDF-ul reparat</h3>
+                            <button class="btn" id="payButton">Plătește 1.99€ cu cardul</button>
+                            <p class="small-text">Plata securizată prin Stripe. Acceptăm toate cardurile majore.</p>
                         `;
                         
                         // Set up payment button
-                        document.getElementById('paymentBtn').addEventListener('click', function() {
+                        document.getElementById('payButton').addEventListener('click', function() {
                             window.location.href = result.paymentUrl;
                         });
                         
@@ -343,7 +342,6 @@
                         repairBtn.disabled = false;
                         repairBtn.textContent = 'Repară PDF-ul acum';
                         repairBtn.classList.remove('btn-processing');
-                        thankYouPage.classList.add('hidden');
                     }
                 };
                 
@@ -428,6 +426,15 @@
         function handleDragLeave(e) {
             e.preventDefault();
             dropArea.classList.remove('drag-over');
+        }
+        
+        function closePopup(e) {
+            if (e.target === termsPopup) {
+                termsPopup.classList.remove('active');
+            }
+            if (e.target === privacyPopup) {
+                privacyPopup.classList.remove('active');
+            }
         }
         
         function showTerms(e) {
