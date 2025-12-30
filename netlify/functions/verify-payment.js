@@ -85,7 +85,7 @@ exports.handler = async (event, context) => {
                 body: JSON.stringify({ 
                     success: true, 
                     fileId: fileId,
-                    fileName: session.metadata?.fileName || 'document_reparat.txt'
+                    fileName: session.metadata.fileName || 'document_reparat.txt'
                 })
             };
             

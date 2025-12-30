@@ -1,16 +1,16 @@
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
+const FormData = require('form-data');
 
 class PdfService {
     constructor() {
         this.apiKey = process.env.PDFCO_API_KEY || 'ghamtech@gmail.com_5UO5OkNnmQiGRSqCA54MrzUrukIL4la9T47xXC92S8OWXwgifOYoU7SHS7lf7WmP';
         this.baseUrl = 'https://api.pdf.co/v1';
         this.headers = {
-            'Content-Type': 'application/json',
             'x-api-key': this.apiKey
         };
     }
-
+    
     fixDiacritics(text) {
         const replacements = {
             'Ã£Æ\'Â¢': 'â',
@@ -20,23 +20,10 @@ class PdfService {
             'Ã£Æ\'Å¢': 'ț',
             'Ã£Æ\'Ëœ': 'Ș',
             'Ã£Æ\'Å£': 'Ț',
-            'â€žÆ\'': 'ă',
-            'Ã¢': 'â',
-            'Â¢': '',
-            'â€': '',
-            'â€œ': '"',
-            'â€': '"',
-            'ÅŸ': 'ș',
-            'Å£': 'ț',
-            'Äƒ': 'ă',
-            'Ã®': 'î',
-            'Ã£': 'ă',
-            'Ä‚': 'Ă',
-            'È™': 'ș',
-            'È›': 'ț',
-            'Ä°': 'İ',
-            'Åž': 'Ș',
-            'Å¢': 'Ț'
+            'Ã£â€ž': 'ă',
+            'Ð”': 'D',
+            'Ð¸': 'i',
+            'Ðµ': 'e'
         };
         
         let fixedText = text;
@@ -48,30 +35,47 @@ class PdfService {
         return fixedText;
     }
 
-    // Fixed function name to match what's being called
-    async extractTextFromBase64(base64File) {
+    async uploadFile(fileBuffer, fileName = 'temp.pdf') {
         try {
-            // First upload the file to get a public URL
-            const uploadResponse = await axios.post(
+            // Create form data for file upload
+            const form = new FormData();
+            form.append('file', fileBuffer, {
+                filename: fileName,
+                contentType: 'application/pdf'
+            });
+            
+            // Get headers for form data
+            const formHeaders = form.getHeaders();
+            const headers = {
+                ...this.headers,
+                ...formHeaders
+            };
+            
+            // Upload file to PDF.co
+            const response = await axios.post(
                 `${this.baseUrl}/file/upload`,
+                form,
                 {
-                    name: 'temp.pdf',
-                    content: base64File
-                },
-                {
-                    headers: this.headers,
+                    headers: headers,
+                    maxContentLength: Infinity,
+                    maxBodyLength: Infinity,
                     timeout: 60000
                 }
             );
             
-            if (uploadResponse.data.error) {
-                throw new Error(uploadResponse.data.message || 'Error uploading file to PDF.co');
+            if (response.data.error) {
+                throw new Error(response.data.message || 'Error uploading file to PDF.co');
             }
             
-            const fileUrl = uploadResponse.data.url;
-            console.log('File uploaded successfully, URL:', fileUrl);
-            
-            // Now extract text using the URL
+            return response.data.url;
+        } catch (error) {
+            console.error('Error uploading file:', error.response?.data || error.message);
+            throw error;
+        }
+    }
+
+    async extractTextFromUrl(fileUrl) {
+        try {
             const response = await axios.post(
                 `${this.baseUrl}/pdf/convert/to/text`,
                 {
@@ -95,6 +99,23 @@ class PdfService {
         }
     }
 
+    async extractTextFromBase64(base64File) {
+        try {
+            // Convert base64 to buffer
+            const fileBuffer = Buffer.from(base64File, 'base64');
+            
+            // Upload file to get URL
+            const fileUrl = await this.uploadFile(fileBuffer, 'temp.pdf');
+            console.log('File uploaded successfully, URL:', fileUrl);
+            
+            // Extract text using the URL
+            return await this.extractTextFromUrl(fileUrl);
+        } catch (error) {
+            console.error('Error in extractTextFromBase64:', error);
+            throw error;
+        }
+    }
+
     async processPdfFile(fileBuffer, userEmail, fileName) {
         try {
             console.log('Starting PDF processing for file:', fileName);
@@ -103,13 +124,12 @@ class PdfService {
             const base64File = fileBuffer.toString('base64');
             console.log('Base64 conversion complete');
             
-            // Extract text from PDF using the correct function name
+            // Extract text from PDF
             console.log('Attempting text extraction...');
             const originalText = await this.extractTextFromBase64(base64File);
-            console.log('Text extraction completed');
             
-            // Fix diacritics
-            console.log('Fixing diacritics...');
+            console.log('Text extraction completed');
+            console.log('Text successfully extracted, fixing diacritics...');
             const fixedText = this.fixDiacritics(originalText);
             
             console.log('Diacritics fixed. Comparison:');
@@ -150,8 +170,7 @@ ${fixedText.substring(0, 500)}
                 fileId: uuidv4(),
                 processedPdf: Buffer.from('Error processing PDF. Please try again with a different file or contact support.'),
                 fileName: fileName,
-                userEmail: userEmail,
-                error: error.message
+                userEmail: userEmail
             };
         }
     }
