@@ -87,7 +87,7 @@ exports.handler = async (event, context) => {
         line_items: [{
           price_data: {
             currency: 'eur',
-            product_ {
+            product_data: {
               name: 'PDF cu diacritice reparate',
               description: fileName
             },
@@ -100,7 +100,7 @@ exports.handler = async (event, context) => {
         cancel_url: `${process.env.BASE_URL}/?cancelled=true`,
         client_reference_id: processedFile.fileId,
         customer_email: userEmail,
-        meta {
+        metadata: {
           fileId: processedFile.fileId,
           fileName: fileName,
           userEmail: userEmail

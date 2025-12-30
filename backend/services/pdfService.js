@@ -48,8 +48,30 @@ class PdfService {
         return fixedText;
     }
 
-    async extractTextFromUrl(fileUrl) {
+    // Fixed function name to match what's being called
+    async extractTextFromBase64(base64File) {
         try {
+            // First upload the file to get a public URL
+            const uploadResponse = await axios.post(
+                `${this.baseUrl}/file/upload`,
+                {
+                    name: 'temp.pdf',
+                    content: base64File
+                },
+                {
+                    headers: this.headers,
+                    timeout: 60000
+                }
+            );
+            
+            if (uploadResponse.data.error) {
+                throw new Error(uploadResponse.data.message || 'Error uploading file to PDF.co');
+            }
+            
+            const fileUrl = uploadResponse.data.url;
+            console.log('File uploaded successfully, URL:', fileUrl);
+            
+            // Now extract text using the URL
             const response = await axios.post(
                 `${this.baseUrl}/pdf/convert/to/text`,
                 {
@@ -81,30 +103,9 @@ class PdfService {
             const base64File = fileBuffer.toString('base64');
             console.log('Base64 conversion complete');
             
-            // Use PDF.co's upload endpoint to get a public URL
-            console.log('Uploading file to PDF.co...');
-            const uploadResponse = await axios.post(
-                `${this.baseUrl}/file/upload`,
-                {
-                    name: fileName,
-                    content: base64File
-                },
-                {
-                    headers: this.headers,
-                    timeout: 60000
-                }
-            );
-            
-            if (uploadResponse.data.error) {
-                throw new Error(uploadResponse.data.message || 'Error uploading file to PDF.co');
-            }
-            
-            const fileUrl = uploadResponse.data.url;
-            console.log('File uploaded successfully, URL:', fileUrl);
-            
-            // Extract text from PDF using the uploaded URL
+            // Extract text from PDF using the correct function name
             console.log('Attempting text extraction...');
-            const originalText = await this.extractTextFromUrl(fileUrl);
+            const originalText = await this.extractTextFromBase64(base64File);
             console.log('Text extraction completed');
             
             // Fix diacritics
