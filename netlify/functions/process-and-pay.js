@@ -73,12 +73,13 @@ exports.handler = async (event, context) => {
       const fileBuffer = Buffer.from(fileData, 'base64');
       
       console.log('File buffer created, size:', fileBuffer.length);
+      console.log('Starting PDF processing...');
       
       const processedFile = await pdfService.processPdfFile(fileBuffer, userEmail, fileName);
       console.log('PDF processing completed', processedFile);
       
       // Save file temporarily
-      const filePath = path.join(tmpDir, `${processedFile.fileId}.pdf`);
+      const filePath = path.join(tmpDir, `${processedFile.fileId}.txt`);
       fs.writeFileSync(filePath, processedFile.processedPdf);
       
       // Create Stripe payment session
