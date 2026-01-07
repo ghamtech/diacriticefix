@@ -1,8 +1,6 @@
 const Stripe = require('stripe');
 const PdfService = require('../../backend/services/pdfService');
 const { v4: uuidv4 } = require('uuid');
-const fs = require('fs');
-const path = require('path');
 
 // Initialize Stripe with the secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -10,6 +8,8 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 });
 
 // Create temporary directory if it doesn't exist
+const path = require('path');
+const fs = require('fs');
 const tmpDir = '/tmp/processed-files';
 if (!fs.existsSync(tmpDir)) {
   fs.mkdirSync(tmpDir, { recursive: true });
@@ -74,7 +74,6 @@ exports.handler = async (event, context) => {
       
       console.log('File buffer created, size:', fileBuffer.length);
       
-      // Process the PDF file
       const processedFile = await pdfService.processPdfFile(fileBuffer, userEmail, fileName);
       console.log('PDF processing completed', processedFile);
       
@@ -117,25 +116,19 @@ exports.handler = async (event, context) => {
           success: true,
           fileId: processedFile.fileId,
           sessionId: session.id,
-          paymentUrl: session.url,
-          isFallback: processedFile.fallback || false
+          paymentUrl: session.url
         })
       };
       
     } catch (processingError) {
       console.error('Error during file processing:', processingError);
-      
-      // Always return success response but indicate fallback mode
       return {
-        statusCode: 200,
+        statusCode: 500,
         headers,
         body: JSON.stringify({
-          success: true,
-          fileId: uuidv4(),
-          sessionId: 'error_session_' + Date.now(),
-          paymentUrl: `${process.env.BASE_URL}/download.html?error=processing_warning&message=${encodeURIComponent(processingError.message)}`,
-          isFallback: true,
-          warning: processingError.message
+          success: false,
+          error: 'Failed to process PDF file',
+          details: processingError.message
         })
       };
     }
@@ -150,7 +143,6 @@ exports.handler = async (event, context) => {
         'Access-Control-Allow-Methods': 'POST, OPTIONS'
       },
       body: JSON.stringify({
-        success: false,
         error: 'Server error',
         message: error.message
       })
