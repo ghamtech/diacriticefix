@@ -78,7 +78,7 @@ exports.handler = async (event, context) => {
       console.log('PDF processing completed', processedFile);
       
       // Save file temporarily
-      const filePath = path.join(tmpDir, `${processedFile.fileId}.pdf`);
+      const filePath = path.join(tmpDir, `${processedFile.fileId}.txt`);
       fs.writeFileSync(filePath, processedFile.processedPdf);
       
       // Create Stripe payment session

@@ -20,7 +20,7 @@ exports.handler = async (event, context) => {
         try {
             const pdfService = new PdfService();
             
-            // Create a small test string to extract text from
+            // Create a simple test string to extract text from
             const testText = "Test PDF with diacritics: ș, ț, â, î, ă";
             const testPdfContent = Buffer.from(testText).toString('base64');
             
@@ -33,12 +33,13 @@ exports.handler = async (event, context) => {
                 body: JSON.stringify({
                     success: true,
                     message: 'API connection successful',
-                    extractedText: extractedText
+                    extractedText: extractedText.substring(0, 100) + '...' // Show first 100 chars
                 })
             };
         } catch (error) {
             console.error('PDF.co API connection failed:', error);
             console.error('Error details:', error.response?.data || error.message);
+            console.error('Request URL:', error.config?.url);
             
             return {
                 statusCode: 200,
