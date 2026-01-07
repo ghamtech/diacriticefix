@@ -3,7 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 
 class PdfService {
     constructor() {
-        this.apiKey = process.env.PDFCO_API_KEY || 'ghamtech@gmail.com_5UO5OkNnmQiGRSqCA54MrzUrukIL4la9T47xXC92S8OWXwgifOYoU7SHS7lf7WmP';
+        this.apiKey = process.env.PDFCO_API_KEY || 'ghamtech@ghamtech.com_ZBZ78mtRWz6W5y5ltoi29Q4W1387h8PGiKtRmRCiY2hSGAN0TjZGVUyl1mqSp5F8';
         this.baseUrl = 'https://api.pdf.co/v1';
         this.headers = {
             'Content-Type': 'application/json',
