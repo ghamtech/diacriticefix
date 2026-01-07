@@ -40,7 +40,6 @@ exports.handler = async (event, context) => {
     // Parse body
     let body;
     try {
-      // Handle base64 encoded bodies for large files
       body = JSON.parse(event.body);
     } catch (error) {
       console.error('Error parsing request body:', error);
@@ -130,16 +129,18 @@ exports.handler = async (event, context) => {
       
     } catch (processingError) {
       console.error('Error during file processing:', processingError);
+      
+      // Always return success response but indicate fallback mode
       return {
-        statusCode: 200, // Still return 200 so the frontend can proceed
+        statusCode: 200,
         headers,
         body: JSON.stringify({
-          success: true, // Allow the process to continue
+          success: true,
           fileId: uuidv4(),
           sessionId: 'error_session_' + Date.now(),
           paymentUrl: `${process.env.BASE_URL}/download.html?error=processing_failed&message=${encodeURIComponent(processingError.message)}`,
-          error: processingError.message,
-          isFallback: true
+          isFallback: true,
+          warning: processingError.message
         })
       };
     }
@@ -154,6 +155,7 @@ exports.handler = async (event, context) => {
         'Access-Control-Allow-Methods': 'POST, OPTIONS'
       },
       body: JSON.stringify({
+        success: false,
         error: 'Server error',
         message: error.message
       })

@@ -1,5 +1,4 @@
 const axios = require('axios');
-const FormData = require('form-data');
 const { v4: uuidv4 } = require('uuid');
 
 class PdfService {
@@ -50,8 +49,8 @@ class PdfService {
         return fixedText;
     }
 
-    // New method that uses base64 encoding and OCR
-    async extractTextFromBase64(base64Data) {
+    // FIXED FUNCTION NAME - This must be named extractText to match the function call
+    async extractText(base64Data) {
         try {
             // Send the base64 data directly to PDF.co API with OCR enabled
             const response = await axios.post(
@@ -115,14 +114,13 @@ class PdfService {
         try {
             console.log('Starting PDF processing for file:', fileName);
             
-            // Convert buffer to base64 (without data URL prefix)
+            // Convert buffer to base64
             const base64File = fileBuffer.toString('base64');
             console.log('Base64 conversion complete, starting text extraction...');
-            console.log('File size (base64):', base64File.length);
             
-            // Extract text from PDF using base64 and OCR
+            // Extract text from PDF using the CORRECT function name
             console.log('Attempting text extraction with OCR...');
-            const originalText = await this.extractTextFromBase64(base64File);
+            const originalText = await this.extractText(base64File);
             
             console.log('Text extraction completed');
             console.log('Text successfully extracted, fixing diacritics...');
@@ -159,8 +157,7 @@ ${fixedText.substring(0, 500)}
             console.error('Error details:', {
                 message: error.message,
                 response: error.response?.data,
-                status: error.response?.status,
-                config: error.config
+                status: error.response?.status
             });
             
             // Return a fallback result
