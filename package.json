@@ -1,0 +1,17 @@
+{
+  "name": "diacriticefix",
+  "version": "1.0.0",
+  "description": "Web application for fixing diacritics in PDF files",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "GhamTech S.R.L.",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.8",
+    "form-data": "^4.0.0",
+    "stripe": "^14.25.0",
+    "uuid": "^9.0.1"
+  }
+}
