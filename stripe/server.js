@@ -1,5 +1,5 @@
-// This is your live secret API key.
-const stripe = require('stripe')('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');
+require('dotenv').config();
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const express = require('express');
 const app = express();
 app.use(express.static('public'));
