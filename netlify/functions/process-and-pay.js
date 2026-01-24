@@ -66,7 +66,6 @@ exports.handler = async (event, context) => {
     }
     
     console.log(`Processing file: ${fileName} for user: ${userEmail}`);
-    console.log('File data length:', fileData.length);
     
     try {
       // Process PDF file
@@ -74,11 +73,6 @@ exports.handler = async (event, context) => {
       const fileBuffer = Buffer.from(fileData, 'base64');
       
       console.log('File buffer created, size:', fileBuffer.length);
-      
-      // Check file size
-      if (fileBuffer.length > 10 * 1024 * 1024) { // 10MB limit
-        throw new Error('File size exceeds 10MB limit. Please use a smaller PDF file.');
-      }
       
       const processedFile = await pdfService.processPdfFile(fileBuffer, userEmail, fileName);
       console.log('PDF processing completed', processedFile);
@@ -91,11 +85,11 @@ exports.handler = async (event, context) => {
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [{
-          price_data: {
+          price: {
             currency: 'eur',
-            product_data: {
+            product: {
               name: 'PDF cu diacritice reparate',
-              description: fileName + (processedFile.ocrUsed ? ' (OCR used)' : '')
+              description: fileName
             },
             unit_amount: 199, // 1.99€ in cents
           },
@@ -106,7 +100,7 @@ exports.handler = async (event, context) => {
         cancel_url: `${process.env.BASE_URL}/?cancelled=true`,
         client_reference_id: processedFile.fileId,
         customer_email: userEmail,
-        metadata: {
+        meta: {
           fileId: processedFile.fileId,
           fileName: fileName,
           userEmail: userEmail
@@ -122,25 +116,22 @@ exports.handler = async (event, context) => {
           success: true,
           fileId: processedFile.fileId,
           sessionId: session.id,
-          paymentUrl: session.url,
-          ocrUsed: processedFile.ocrUsed
+          paymentUrl: session.url
         })
       };
       
     } catch (processingError) {
       console.error('Error during file processing:', processingError);
-      
-      // Always return success response but indicate fallback mode
       return {
-        statusCode: 200,
+        statusCode: 200, // Still return 200 so the frontend can proceed
         headers,
         body: JSON.stringify({
-          success: true,
+          success: true, // Allow the process to continue
           fileId: uuidv4(),
           sessionId: 'error_session_' + Date.now(),
           paymentUrl: `${process.env.BASE_URL}/download.html?error=processing_failed&message=${encodeURIComponent(processingError.message)}`,
-          isFallback: true,
-          warning: processingError.message
+          error: processingError.message,
+          isFallback: true
         })
       };
     }
@@ -155,7 +146,6 @@ exports.handler = async (event, context) => {
         'Access-Control-Allow-Methods': 'POST, OPTIONS'
       },
       body: JSON.stringify({
-        success: false,
         error: 'Server error',
         message: error.message
       })

@@ -19,6 +19,7 @@
     <link rel="icon" type="image/png" href="favicon.png">
     <!-- Stripe.js -->
     <script src="https://js.stripe.com/v3/"></script>
+    <script async src="https://js.stripe.com/v3/buy-button.js"></script>
 </head>
 <body>
     <header>
@@ -94,27 +95,19 @@
             <div id="uploadStatus" class="upload-status hidden">
                 <p>✅ Fișierul <span id="statusFileName">Document.pdf</span> a fost încărcat cu succes!</p>
             </div>
-            
-            <div id="processingStatus" class="processing-status hidden">
-                <div class="spinner"></div>
-                <p id="processingMessage">Se procesează fișierul... 0%</p>
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progressFill"></div>
-                </div>
-                <p class="help-text">
-                    ⚠️ Procesarea poate dura până la 30 de secunde pentru fișiere mari.
-                </p>
-            </div>            
         </div>
         
-        <div class="payment-container hidden" id="paymentContainer">
+        <div class="payment-container" id="paymentContainer">
             <h3>Completează plata pentru a descărca PDF-ul reparat</h3>
-            <button class="btn" id="payButton">Plătește 1.99€ cu cardul</button>
+            <stripe-buy-button
+              buy-button-id="buy_btn_1St4J7RvhJNCyR7MxKUWRDIf"
+              publishable-key="pk_live_51SbKtIRvhJNCyR7MHEJZnVmJW1kgGTc6KysHLY45PzkLBTv6FrhomUbuyiN3mZbIOKOW3YlS8ksDeYqkIZR25Pyq006CJY9pzw">
+            </stripe-buy-button>
             <p class="small-text">Plata securizată prin Stripe. Acceptăm toate cardurile majore.</p>
         </div>
         
         <div class="disclaimer">
-            <strong>Important:</strong> Procesul de reparare necesită acceptarea Termenilor și Condițiilor și a Politicii de Confidențialitate. După procesare, vei fi redirecționat către pagina de plată.
+            <strong>Important:</strong> Procesul de reparare necesită acceptarea Termenilor și Condițiilor și a Politicii de Confidențialitate.
         </div>
         
         <section class="faq" id="faq">
@@ -160,7 +153,7 @@
             <div style="background: white; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); padding: 30px; text-align: left;">
                 <p><strong>GhamTech S.R.L.</strong></p>
                 <p>CUI: 50686976</p>
-                <p>Sediu social: Bacău, România</p>
+                <p>Sediu social: Str. Nicolae Bălcescu, Nr. 12, Bacău, România</p>
                 <p>Contact: <a href="mailto:ghamtech@ghamtech.com" style="color: #e91e63; text-decoration: none;">ghamtech@ghamtech.com</a></p>
             </div>
         </section>
@@ -223,7 +216,7 @@
                     </ul>
                 </div>
             </div>
-            <p>&copy; 2025 GhamTech S.R.L. | CUI: 50686976 | Sediu: Bacău, România</p>
+            <p>&copy; 2025 GhamTech S.R.L. | CUI: 50686976 | Sediul social: Str. Nicolae Bălcescu, Nr. 12, Bacău, România</p>
         </div>
     </footer>
 
@@ -235,8 +228,6 @@
         const dropArea = document.getElementById('dropArea');
         const termsPopup = document.getElementById('termsPopup');
         const privacyPopup = document.getElementById('privacyPopup');
-        const paymentContainer = document.getElementById('paymentContainer');
-        const payButton = document.getElementById('payButton');
         const thankYouPage = document.getElementById('thankYouPage');
         const downloadLink = document.getElementById('downloadLink');
         const filePreview = document.getElementById('filePreview');
@@ -245,13 +236,10 @@
         const fileSize = document.getElementById('fileSize');
         const uploadStatus = document.getElementById('uploadStatus');
         const statusFileName = document.getElementById('statusFileName');
-        const processingStatus = document.getElementById('processingStatus');
-        const processingMessage = document.getElementById('processingMessage');
-        const progressFill = document.getElementById('progressFill');        
         let uploadedFile = null;
         let userEmail = null;
         
-        // Stripe initialization with live key
+        // Stripe initialization with your live key
         const stripe = Stripe('pk_live_51SbKtIRvhJNCyR7MHEJZnVmJW1kgGTc6KysHLY45PzkLBTv6FrhomUbuyiN3mZbIOKOW3YlS8ksDeYqkIZR25Pyq006CJY9pzw');
         
         // Event listeners
@@ -261,8 +249,6 @@
         dropArea.addEventListener('dragover', handleDragOver);
         dropArea.addEventListener('dragleave', handleDragLeave);
         dropArea.addEventListener('drop', handleDrop);
-        termsPopup.addEventListener('click', closePopup);
-        privacyPopup.addEventListener('click', closePopup);
         
         // Terms and conditions popup
         document.getElementById('agreeBtn').addEventListener('click', () => {
@@ -305,30 +291,10 @@
                 repairBtn.disabled = true;
                 repairBtn.textContent = 'Se procesează...';
                 repairBtn.classList.add('btn-processing');
-                thankYouPage.classList.add('hidden');
-                downloadLink.classList.add('hidden');
-                uploadStatus.classList.add('hidden');
-                processingStatus.classList.remove('hidden');
-
-                // Reset progress
-                let progress = 0;
-                progressFill.style.width = '0%';
-                processingMessage.textContent = 'Se procesează fișierul... 0%';
-
-                // Simulate progress
-                const progressInterval = setInterval(() => {
-                    progress += Math.random() * 5;
-                    if (progress > 95) progress = 95;
-
-                    progressFill.style.width = `${progress}%`;
-                    processingMessage.textContent = `Se procesează fișierul... ${Math.floor(progress)}%`;
-                }, 300);
-
+                
                 // Create FormData object
                 const reader = new FileReader();
                 reader.onload = async function(e) {
-                    clearInterval(progressInterval);
-                    progressFill.style.width = `100%`;
                     const base64File = e.target.result.split(',')[1]; // Remove data URL prefix
                     
                     try {
@@ -349,37 +315,24 @@
                         
                         const result = await response.json();
                         console.log('API Response:', result);
-
-                        if (!result.success) {
+                        
+                        if (!response.ok || !result.success) {
                             throw new Error(result.error || 'A apărut o eroare la procesarea fișierului');
                         }
-                        // Handle warnings or fallback mode
-                        if (result.isFallback || result.warning) {
-                            alert(`⚠️ Avertisment: ${result.warning || 'Fișierul a fost procesat cu metode alternative. Vă rugăm să verificați rezultatul cu atenție.'}`);
-                        }
+                        
                         // Store file ID
                         localStorage.setItem('processedFileId', result.fileId);
+                        
                         // Show payment container
-                        processingStatus.classList.add('hidden');
-                        paymentContainer.classList.remove('hidden');
-                        paymentContainer.innerHTML = `
-                            <h3>Completează plata pentru a descărca PDF-ul reparat</h3>
-                            <button class="btn" id="payButton">Plătește 1.99€ cu cardul</button>
-                            <p class="small-text">Plata securizată prin Stripe. Acceptăm toate cardurile majore.</p>
-                        `;
-                        // Set up payment button
-                        payButton.onclick = function() {
-                            window.location.href = result.paymentUrl;
-                        };
+                        document.querySelector('.upload-section').style.display = 'none';
+                        document.getElementById('paymentContainer').style.display = 'block';
                         
                     } catch (error) {
-                        clearInterval(progressInterval);
                         console.error('Error processing PDF:', error);
                         alert('A apărut o eroare la procesarea fișierului. Vă rugăm să încercați din nou.\n\n' + error.message);
                         repairBtn.disabled = false;
                         repairBtn.textContent = 'Repară PDF-ul acum';
                         repairBtn.classList.remove('btn-processing');
-                        processingStatus.classList.add('hidden');
                     }
                 };
                 
@@ -466,15 +419,6 @@
             dropArea.classList.remove('drag-over');
         }
         
-        function closePopup(e) {
-            if (e.target === termsPopup) {
-                termsPopup.classList.remove('active');
-            }
-            if (e.target === privacyPopup) {
-                privacyPopup.classList.remove('active');
-            }
-        }
-        
         function showTerms(e) {
             e.preventDefault();
             if (!uploadedFile) {
@@ -517,8 +461,6 @@
             pdfUpload.value = '';
             uploadedFile = null;
             userEmail = null;
-            paymentContainer.classList.add('hidden');
-            processingStatus.classList.add('hidden');
         }
         
         // Reset UI if page is refreshed after payment

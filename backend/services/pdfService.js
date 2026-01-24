@@ -1,14 +1,13 @@
 const axios = require('axios');
 const { v4: uuidv4 } = require('uuid');
+const FormData = require('form-data');
 
 class PdfService {
     constructor() {
-        // Updated PDF.co API key
         this.apiKey = process.env.PDFCO_API_KEY || 'ghamtech@ghamtech.com_ZBZ78mtRWz6W5y5ltoi29Q4W1387h8PGiKtRmRCiY2hSGAN0TjZGVUyl1mqSp5F8';
         this.baseUrl = 'https://api.pdf.co/v1';
         this.headers = {
-            'x-api-key': this.apiKey,
-            'Content-Type': 'application/json'
+            'x-api-key': this.apiKey
         };
     }
     
@@ -21,23 +20,10 @@ class PdfService {
             'Ã£Æ\'Å¢': 'ț',
             'Ã£Æ\'Ëœ': 'Ș',
             'Ã£Æ\'Å£': 'Ț',
-            'â€žÆ\'': 'ă',
-            'Ã¢': 'â',
-            'Â¢': '',
-            'â€': '',
-            'â€œ': '"',
-            'â€': '"',
-            'ÅŸ': 'ș',
-            'Å£': 'ț',
-            'Äƒ': 'ă',
-            'Ã®': 'î',
-            'Ã£': 'ă',
-            'Ä‚': 'Ă',
-            'È™': 'ș',
-            'È›': 'ț',
-            'Ä°': 'İ',
-            'Åž': 'Ș',
-            'Å¢': 'Ț'
+            'Ã£â€ž': 'ă',
+            'Ð”': 'D',
+            'Ð¸': 'i',
+            'Ðµ': 'e'
         };
         
         let fixedText = text;
@@ -49,25 +35,60 @@ class PdfService {
         return fixedText;
     }
 
-    // FIXED FUNCTION NAME - This must be named extractText to match the function call
-    async extractText(base64Data) {
+    async uploadFile(fileBuffer, fileName = 'temp.pdf') {
         try {
-            // Send the base64 data directly to PDF.co API with OCR enabled
+            const form = new FormData();
+            form.append('file', fileBuffer, {
+                filename: fileName,
+                contentType: 'application/pdf'
+            });
+            
+            const formHeaders = form.getHeaders();
+            const headers = {
+                ...this.headers,
+                ...formHeaders
+            };
+            
+            const response = await axios.post(
+                `${this.baseUrl}/file/upload`,
+                form,
+                {
+                    headers: headers,
+                    maxContentLength: Infinity,
+                    maxBodyLength: Infinity,
+                    timeout: 60000
+                }
+            );
+            
+            if (response.data.error) {
+                throw new Error(response.data.message || 'Error uploading file to PDF.co');
+            }
+            
+            return response.data.url;
+        } catch (error) {
+            console.error('Error uploading file:', error.response?.data || error.message);
+            throw error;
+        }
+    }
+
+    async extractTextFromUrl(fileUrl) {
+        try {
             const response = await axios.post(
                 `${this.baseUrl}/pdf/convert/to/text`,
                 {
-                    base64: base64Data,  // Send base64 directly instead of URL
+                    url: fileUrl,
                     inline: true,
-                    ocr: true,  // Enable OCR for all PDFs to handle scanned documents
-                    ocrLanguage: "eng,ron",  // English and Romanian language support
-                    ocrMode: "auto",  // Auto-detect whether document is scanned or text-based
-                    async: false  // Process synchronously for better error handling
+                    ocr: true,
+                    ocrLanguage: "eng,ron",
+                    ocrMode: "auto",
+                    async: false
                 },
                 {
-                    headers: this.headers,
-                    timeout: 120000,  // Increased timeout for OCR processing (2 minutes)
-                    maxContentLength: Infinity,
-                    maxBodyLength: Infinity
+                    headers: {
+                        'x-api-key': this.apiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 120000
                 }
             );
             
@@ -78,34 +99,17 @@ class PdfService {
             return response.data.text;
         } catch (error) {
             console.error('Error extracting text:', error.response?.data || error.message);
-            
-            // Fallback attempt with minimal parameters if the first attempt fails
-            if (error.response?.status === 500) {
-                console.log('Attempting fallback text extraction without OCR...');
-                try {
-                    const fallbackResponse = await axios.post(
-                        `${this.baseUrl}/pdf/convert/to/text`,
-                        {
-                            base64: base64Data,
-                            inline: true
-                        },
-                        {
-                            headers: this.headers,
-                            timeout: 60000
-                        }
-                    );
-                    
-                    if (fallbackResponse.data.error) {
-                        throw new Error(fallbackResponse.data.message || 'Fallback text extraction failed');
-                    }
-                    
-                    return fallbackResponse.data.text;
-                } catch (fallbackError) {
-                    console.error('Fallback extraction failed:', fallbackError.response?.data || fallbackError.message);
-                    throw fallbackError;
-                }
-            }
-            
+            throw error;
+        }
+    }
+
+    async extractText(base64File) {
+        try {
+            const fileBuffer = Buffer.from(base64File, 'base64');
+            const fileUrl = await this.uploadFile(fileBuffer, 'temp.pdf');
+            return await this.extractTextFromUrl(fileUrl);
+        } catch (error) {
+            console.error('Error in extractText:', error);
             throw error;
         }
     }
@@ -116,10 +120,10 @@ class PdfService {
             
             // Convert buffer to base64
             const base64File = fileBuffer.toString('base64');
-            console.log('Base64 conversion complete, starting text extraction...');
+            console.log('Base64 conversion complete');
             
-            // Extract text from PDF using the CORRECT function name
-            console.log('Attempting text extraction with OCR...');
+            // Extract text from PDF
+            console.log('Attempting text extraction...');
             const originalText = await this.extractText(base64File);
             
             console.log('Text extraction completed');
@@ -130,26 +134,16 @@ class PdfService {
             console.log('Original text length:', originalText.length);
             console.log('Fixed text length:', fixedText.length);
             
-            // Create the repaired PDF content
+            // For now, we'll create a simple text file with the fixed content
             const fileId = uuidv4();
-            const fixedContent = `PDF repaired successfully!
-Original file: ${fileName}
-Email: ${userEmail}
-
-Original text (first 500 chars):
-${originalText.substring(0, 500)}
-
-Fixed text (first 500 chars):
-${fixedText.substring(0, 500)}
-            `;
+            const fixedContent = `PDF repaired successfully!\nOriginal file: ${fileName}\nEmail: ${userEmail}\n\nOriginal text (first 500 chars):\n${originalText.substring(0, 500)}\n\nFixed text (first 500 chars):\n${fixedText.substring(0, 500)}`;
             
             console.log('PDF processing completed successfully');
             return {
                 fileId: fileId,
                 processedPdf: Buffer.from(fixedContent, 'utf-8'),
                 fileName: fileName,
-                userEmail: userEmail,
-                ocrUsed: true
+                userEmail: userEmail
             };
             
         } catch (error) {
@@ -163,7 +157,7 @@ ${fixedText.substring(0, 500)}
             // Return a fallback result
             return {
                 fileId: uuidv4(),
-                processedPdf: Buffer.from('Error processing PDF. Please try a smaller file or contact support at ghamtech@ghamtech.com.'),
+                processedPdf: Buffer.from('Error processing PDF. Please try again with a different file or contact support.'),
                 fileName: fileName,
                 userEmail: userEmail,
                 error: error.message
