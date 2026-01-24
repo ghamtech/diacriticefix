@@ -1,5 +1,5 @@
 require('dotenv').config();
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const stripe = require('stripe')('pk_live_51SbKtIRvhJNCyR7MHEJZnVmJW1kgGTc6KysHLY45PzkLBTv6FrhomUbuyiN3mZbIOKOW3YlS8ksDeYqkIZR25Pyq006CJY9pzw');
 const express = require('express');
 const app = express();
 app.use(express.static('public'));
