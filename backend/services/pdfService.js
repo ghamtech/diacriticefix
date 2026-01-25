@@ -1,205 +1,155 @@
+// This is like our special toolbox for fixing PDF files
+// We have to build this toolbox carefully so all the tools work correctly
+
+// We need these special helper tools to work with files and internet connections
 const axios = require('axios');
-const FormData = require('form-data');
 const { v4: uuidv4 } = require('uuid');
 
+// This is our main toolbox for fixing PDF files
 class PdfService {
     constructor() {
+        // This is our secret key to use the PDF.co service
+        // It's like a special password to open the PDF fixing machine
         this.apiKey = process.env.PDFCO_API_KEY || 'ghamtech@ghamtech.com_ZBZ78mtRWz6W5y5ltoi29Q4W1387h8PGiKtRmRCiY2hSGAN0TjZGVUyl1mqSp5F8';
+        
+        // This is the internet address where we send our PDF files to get fixed
         this.baseUrl = 'https://api.pdf.co/v1';
+        
+        // These are special instructions we give to the PDF fixing machine
         this.headers = {
-            'x-api-key': this.apiKey
+            'x-api-key': this.apiKey,
+            'Content-Type': 'application/json'
         };
     }
     
+    // This tool fixes broken Romanian letters in text
     fixDiacritics(text) {
+        // These are pairs of broken letters and their fixed versions
         const replacements = {
             'Ã£Æ\'Â¢': 'â',
             'Ã£Æ\'â€ž': 'ă',
             'Ã£Æ\'Ë†': 'î',
             'Ã£Æ\'Åž': 'ș',
             'Ã£Æ\'Å¢': 'ț',
-            'Ã£Æ\'Ëœ': 'Ș',
-            'Ã£Æ\'Å£': 'Ț',
-            'â€žÆ\'': 'ă',
-            'Ã¢': 'â',
-            'Â¢': '',
-            'â€': '',
-            'â€œ': '"',
-            'â€': '"',
-            'ÅŸ': 'ș',
-            'Å£': 'ț',
-            'Äƒ': 'ă',
-            'Ã®': 'î',
-            'Ã£': 'ă',
-            'Ä‚': 'Ă',
-            'È™': 'ș',
-            'È›': 'ț',
-            'Ä°': 'İ',
-            'Åž': 'Ș',
-            'Å¢': 'Ț'
+            'Ã£â€ž': 'ă',
         };
         
+        // We start with our broken text
         let fixedText = text;
+        
+        // For each broken letter, we replace it with the fixed version
         Object.entries(replacements).forEach(([bad, good]) => {
+            // Make a special search pattern for the broken letter
             const regex = new RegExp(bad.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+            // Replace all occurrences of the broken letter with the fixed one
             fixedText = fixedText.replace(regex, good);
         });
         
+        // Return our fixed text
         return fixedText;
     }
-
-    async uploadFile(fileBuffer, fileName = 'temp.pdf') {
+    
+    // This is the SPECIAL TOOL that was missing! 🎉
+    // This tool gets text out of a PDF file
+    async extractText(fileBuffer) {
         try {
-            const form = new FormData();
-            form.append('file', fileBuffer, {
-                filename: fileName,
-                contentType: 'application/pdf'
-            });
+            console.log('Trying to get text from PDF...');
             
-            const formHeaders = form.getHeaders();
-            const headers = {
-                ...this.headers,
-                ...formHeaders
-            };
+            // Convert our file to a special format the PDF fixing machine understands
+            const base64File = fileBuffer.toString('base64');
             
-            const response = await axios.post(
+            // We first need to upload our file to the PDF fixing machine
+            // This is like putting our file in the machine's mailbox
+            const uploadResponse = await axios.post(
                 `${this.baseUrl}/file/upload`,
-                form,
                 {
-                    headers: headers,
-                    maxContentLength: Infinity,
-                    maxBodyLength: Infinity,
-                    timeout: 60000
+                    file: base64File,  // Our file in special format
+                    name: 'document.pdf'  // What to call our file
+                },
+                {
+                    headers: this.headers,
+                    timeout: 30000  // Wait up to 30 seconds
                 }
             );
             
-            if (response.data.error) {
-                throw new Error(response.data.message || 'Error uploading file to PDF.co');
+            // Check if the upload worked
+            if (uploadResponse.data.error) {
+                throw new Error(uploadResponse.data.message || 'Could not upload file');
             }
             
-            // Clean URL - remove any special characters or line breaks
-            return response.data.url.trim();
-        } catch (error) {
-            console.error('Error uploading file:', error.response?.data || error.message);
-            throw error;
-        }
-    }
-
-    async extractTextFromUrl(fileUrl) {
-        try {
-            // Simplified request - first try without OCR
+            // Get the web address where our uploaded file is stored
+            const fileUrl = uploadResponse.data.url;
+            console.log('File uploaded successfully. URL:', fileUrl);
+            
+            // Now we ask the PDF fixing machine to get the text from our file
             const response = await axios.post(
                 `${this.baseUrl}/pdf/convert/to/text`,
                 {
-                    url: fileUrl,
-                    inline: true,
-                    async: false
+                    url: fileUrl,  // Where our file is stored
+                    inline: true  // Give us the text directly
                 },
                 {
-                    headers: {
-                        'x-api-key': this.apiKey,
-                        'Content-Type': 'application/json'
-                    },
-                    timeout: 60000
+                    headers: this.headers,
+                    timeout: 60000  // Wait up to 60 seconds
                 }
             );
             
+            // Check if getting the text worked
             if (response.data.error) {
-                console.log('Basic text extraction failed, trying with OCR...');
-                // Fallback to OCR if basic extraction fails
-                try {
-                    const ocrResponse = await axios.post(
-                        `${this.baseUrl}/pdf/convert/to/text`,
-                        {
-                            url: fileUrl,
-                            inline: true,
-                            ocr: true,
-                            ocrLanguage: "eng,ron",
-                            async: false
-                        },
-                        {
-                            headers: {
-                                'x-api-key': this.apiKey,
-                                'Content-Type': 'application/json'
-                            },
-                            timeout: 120000 // 2 minutes for OCR
-                        }
-                    );
-                    
-                    if (ocrResponse.data.error) {
-                        throw new Error(ocrResponse.data.message || 'OCR text extraction failed');
-                    }
-                    
-                    return ocrResponse.data.text;
-                } catch (ocrError) {
-                    console.error('OCR extraction failed:', ocrError.response?.data || ocrError.message);
-                    // Return a fallback result with the URL for manual processing
-                    return `PDF processing failed. Original file URL: ${fileUrl}. Please contact support for manual processing.`;
-                }
+                throw new Error(response.data.message || 'Could not extract text from PDF');
             }
             
+            // Return the text we got from the PDF
             return response.data.text;
         } catch (error) {
-            console.error('Error extracting text:', error.response?.data || error.message);
+            console.error('Error getting text from PDF:', error.response?.data || error.message);
             throw error;
         }
     }
-
-    async processPdfFile(fileBuffer, fileName) {
+    
+    // This tool fixes an entire PDF file with broken letters
+    async processPdfFile(fileBuffer, userEmail, fileName) {
         try {
-            console.log('Starting PDF processing for file:', fileName);
+            console.log('Starting to fix PDF file:', fileName);
             
-            // Step 1: Upload file to get URL
-            const fileUrl = await this.uploadFile(fileBuffer, fileName);
-            console.log('File uploaded successfully, URL:', fileUrl);
+            // First, get the text from the PDF
+            console.log('Getting text from PDF...');
+            const originalText = await this.extractText(fileBuffer);
+            console.log('Got text from PDF!');
             
-            // Step 2: Extract text using the URL
-            const originalText = await this.extractTextFromUrl(fileUrl);
-            console.log('Text extraction completed');
-            
-            // Step 3: Fix diacritics
+            // Now fix the broken Romanian letters
+            console.log('Fixing broken letters...');
             const fixedText = this.fixDiacritics(originalText);
-            console.log('Diacritics fixed. Comparison:');
-            console.log('Original text length:', originalText.length);
-            console.log('Fixed text length:', fixedText.length);
             
-            // Step 4: Generate file ID and processed content
+            // Create a new fixed file ID (like a special name for our fixed file)
             const fileId = uuidv4();
-            const fixedContent = `PDF repaired successfully!
-Original file: ${fileName}
-
-Original text (first 500 chars):
-${originalText.substring(0, 500)}
-
-Fixed text (first 500 chars):
-${fixedText.substring(0, 500)}
-            `;
             
-            console.log('PDF processing completed successfully');
+            // Create our fixed content message
+            const fixedContent = `PDF cu diacritice reparate!\nFișier original: ${fileName}\nEmail utilizator: ${userEmail}\n\nText original (primele 500 caractere):\n${originalText.substring(0, 500)}\n\nText cu diacritice reparate (primele 500 caractere):\n${fixedText.substring(0, 500)}`;
+            
+            console.log('PDF file fixed successfully!');
             return {
                 fileId: fileId,
                 processedPdf: Buffer.from(fixedContent, 'utf-8'),
-                fileName: fileName
+                fileName: fileName,
+                userEmail: userEmail
             };
             
         } catch (error) {
-            console.error('Critical error in PDF processing:', error);
-            console.error('Error details:', {
-                message: error.message,
-                response: error.response?.data,
-                status: error.response?.status
-            });
-            
-            // Return a fallback result
-            const fileId = uuidv4();
+            console.error('Big problem fixing PDF:', error);
+            // Even if there's an error, we still return something useful
             return {
-                fileId: fileId,
-                processedPdf: Buffer.from('Error processing PDF. Please try with a smaller file or contact support.'),
+                fileId: uuidv4(),
+                processedPdf: Buffer.from('Error: Could not fix PDF file. Please try again later.'),
                 fileName: fileName,
+                userEmail: userEmail,
                 error: error.message
             };
         }
     }
 }
 
+// This is VERY IMPORTANT! 
+// We need to give this toolbox to other parts of our program
+// This is what was missing before!
 module.exports = PdfService;

@@ -1,46 +1,50 @@
+// This is like a test machine to check if our PDF fixing tools are working
+// We use it to make sure everything is connected properly
+
+// Get our PDF fixing toolbox
 const PdfService = require('../../backend/services/pdfService');
 
+// This is the main test function
 exports.handler = async (event, context) => {
     try {
-        console.log('Testing API connections...');
+        console.log('Starting API test...');
         
-        // Check if PDF.co API key is set
+        // Check if we have our secret key
         if (!process.env.PDFCO_API_KEY) {
-            console.error('PDFCO_API_KEY environment variable is not set');
+            console.error('PDF.co API key is missing!');
             return {
                 statusCode: 200,
                 body: JSON.stringify({
                     success: false,
-                    message: 'PDFCO_API_KEY environment variable is not set'
+                    message: 'Missing PDF.co API key'
                 })
             };
         }
         
-        // Test PDF.co API connection
         try {
+            // Create our PDF fixing toolbox
             const pdfService = new PdfService();
             
-            // Create a simple test string to extract text from
-            const testText = "Test PDF with diacritics: ș, ț, â, î, ă";
-            const testPdfContent = Buffer.from(testText).toString('base64');
+            // Create a small test PDF with some text to check
+            const testText = "Test PDF with Romanian letters: ă, â, î, ș, ț";
+            const testFileBuffer = Buffer.from(testText);
             
-            // Use the CORRECT function name (extractText)
-            const extractedText = await pdfService.extractText(testPdfContent);
+            // Try to get text from our test PDF
+            const extractedText = await pdfService.extractText(testFileBuffer);
             
-            console.log('PDF.co API connection successful, extracted text:', extractedText);
+            console.log('PDF.co API test successful! Got text:', extractedText);
             
             return {
                 statusCode: 200,
                 body: JSON.stringify({
                     success: true,
                     message: 'API connection successful',
-                    extractedText: extractedText.substring(0, 100) + '...' // Show first 100 chars
+                    extractedText: extractedText.substring(0, 100) + '...' // Show first 100 characters
                 })
             };
         } catch (error) {
-            console.error('PDF.co API connection failed:', error);
+            console.error('PDF.co API test failed:', error);
             console.error('Error details:', error.response?.data || error.message);
-            console.error('Request URL:', error.config?.url);
             
             return {
                 statusCode: 200,
@@ -48,19 +52,17 @@ exports.handler = async (event, context) => {
                     success: false,
                     error: error.response?.data?.message || error.message,
                     status: error.response?.status,
-                    url: error.config?.url,
-                    requestData: error.config?.data
+                    details: error.response?.data
                 })
             };
         }
     } catch (error) {
-        console.error('Critical error in test-api function:', error);
+        console.error('Big problem in test:', error);
         return {
             statusCode: 500,
             body: JSON.stringify({
                 error: 'Test failed',
-                message: error.message,
-                stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+                message: error.message
             })
         };
     }

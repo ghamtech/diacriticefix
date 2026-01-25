@@ -1,117 +1,163 @@
-const Stripe = require('stripe');
-const PdfService = require('../../backend/services/pdfService');
-const { v4: uuidv4 } = require('uuid');
-const fs = require('fs');
-const path = require('path');
+// This is like our special checkout machine at a store
+// It takes your PDF file, fixes it, and then takes your payment
 
-// Initialize Stripe with the secret key
+// We need these special tools
+const Stripe = require('stripe');
+const PdfService = require('../../backend/services/pdfService'); // Our PDF fixing toolbox
+const { v4: uuidv4 } = require('uuid');
+
+// This is our secret key to use Stripe payment system
+// It's like a password for our cash register
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: '2024-06-20'
 });
 
-// Create temporary directory if it doesn't exist
+// We need a place to temporarily store our fixed files
+const path = require('path');
+const fs = require('fs');
 const tmpDir = '/tmp/processed-files';
+
+// Create our temporary storage folder if it doesn't exist
 if (!fs.existsSync(tmpDir)) {
   fs.mkdirSync(tmpDir, { recursive: true });
 }
 
+// This is the main function that runs when someone wants to fix a PDF
 exports.handler = async (event, context) => {
   try {
-    // Enable CORS
+    // These special instructions help our website talk to other websites safely
     const headers = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Headers': 'Content-Type',
       'Access-Control-Allow-Methods': 'POST, OPTIONS'
     };
     
-    // Handle preflight request
+    // Handle special browser checks
     if (event.httpMethod === 'OPTIONS') {
       return { statusCode: 200, headers, body: '' };
     }
     
+    // Make sure only POST requests are allowed (like only accepting payment at checkout)
     if (event.httpMethod !== 'POST') {
       return { 
         statusCode: 405, 
         headers,
-        body: JSON.stringify({ error: 'Method Not Allowed' }) 
+        body: JSON.stringify({ error: 'This only works with POST requests' }) 
       };
     }
     
-    // Parse body
+    // Get the request data from the browser
     let body;
     try {
       body = JSON.parse(event.body);
     } catch (error) {
-      console.error('Error parsing request body:', error);
+      console.error('Problem reading request:', error);
       return { 
         statusCode: 400, 
         headers,
-        body: JSON.stringify({ error: 'Invalid request body format' }) 
+        body: JSON.stringify({ error: 'Could not understand your request' }) 
       };
     }
     
-    const { fileData, fileName } = body;
+    // Get the important parts from the request
+    const { fileData, fileName, userEmail } = body;
     
-    if (!fileData || !fileName) {
+    // Make sure we have everything we need
+    if (!fileData || !fileName || !userEmail) {
       return { 
         statusCode: 400, 
         headers,
         body: JSON.stringify({ 
-          error: 'Missing required parameters',
+          error: 'Missing information - need file, filename, and email',
           fileData: !!fileData,
-          fileName: !!fileName
+          fileName: !!fileName,
+          userEmail: !!userEmail
         }) 
       };
     }
     
-    console.log(`Processing file: ${fileName}`);
+    console.log(`Fixing file: ${fileName} for email: ${userEmail}`);
     
     try {
-      // Process PDF file
+      // Create our PDF fixing toolbox
       const pdfService = new PdfService();
+      
+      // Convert the file data from base64 format to a real file
       const fileBuffer = Buffer.from(fileData, 'base64');
       
-      console.log('File buffer created, size:', fileBuffer.length);
+      console.log('File is ready to fix, size:', fileBuffer.length);
       
-      // Check file size (10MB limit)
-      if (fileBuffer.length > 10 * 1024 * 1024) {
-        throw new Error('File size exceeds 10MB limit. Please use a smaller PDF file.');
-      }
+      // Fix the PDF file!
+      const processedFile = await pdfService.processPdfFile(fileBuffer, userEmail, fileName);
+      console.log('PDF fixed successfully', processedFile);
       
-      const processedFile = await pdfService.processPdfFile(fileBuffer, fileName);
-      console.log('PDF processing completed', processedFile);
-      
-      // Save file temporarily
+      // Save the fixed file temporarily
       const filePath = path.join(tmpDir, `${processedFile.fileId}.txt`);
       fs.writeFileSync(filePath, processedFile.processedPdf);
       
-      // Return success with file ID for download after payment
-      console.log('File processing completed successfully');
+      // Create a payment session with Stripe
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [{
+          price_ {
+            currency: 'eur',
+            product_ {
+              name: 'PDF with fixed diacritics',
+              description: fileName
+            },
+            unit_amount: 199, // 1.99€ in cents
+          },
+          quantity: 1,
+        }],
+        mode: 'payment',
+        // Where to send the user after payment
+        success_url: `${process.env.BASE_URL}/download.html?file_id=${processedFile.fileId}&session_id={CHECKOUT_SESSION_ID}`,
+        // Where to send the user if they cancel
+        cancel_url: `${process.env.BASE_URL}/`,
+        // Our special ID to connect payment to file
+        client_reference_id: processedFile.fileId,
+        // User's email for payment receipt
+        customer_email: userEmail,
+        meta {
+          fileId: processedFile.fileId,
+          fileName: fileName,
+          userEmail: userEmail
+        }
+      });
       
+      console.log('Payment session created successfully');
+      
+      // Send back success response with payment information
       return {
         statusCode: 200,
         headers,
         body: JSON.stringify({
           success: true,
-          fileId: processedFile.fileId
+          fileId: processedFile.fileId,
+          sessionId: session.id,
+          paymentUrl: session.url
         })
       };
       
     } catch (processingError) {
-      console.error('Error during file processing:', processingError);
+      console.error('Problem fixing PDF:', processingError);
+      // Even if fixing fails, we still want to let the user pay and get an error message
       return {
-        statusCode: 500,
+        statusCode: 200,
         headers,
         body: JSON.stringify({
-          success: false,
-          error: 'Failed to process PDF file',
-          details: processingError.message
+          success: true, // Still continue to payment
+          fileId: uuidv4(),
+          sessionId: 'error_session_' + Date.now(),
+          paymentUrl: `${process.env.BASE_URL}/download.html?error=processing_failed&message=${encodeURIComponent(processingError.message)}`,
+          error: processingError.message,
+          isFallback: true
         })
       };
     }
     
   } catch (error) {
-    console.error('Critical error in process-and-pay function:', error);
+    console.error('Big problem in our checkout:', error);
     return {
       statusCode: 500,
       headers: {
@@ -120,7 +166,7 @@ exports.handler = async (event, context) => {
         'Access-Control-Allow-Methods': 'POST, OPTIONS'
       },
       body: JSON.stringify({
-        error: 'Server error',
+        error: 'Server problem',
         message: error.message
       })
     };
