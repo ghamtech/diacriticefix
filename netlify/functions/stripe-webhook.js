@@ -1,6 +1,4 @@
 const Stripe = require('stripe');
-const PdfService = require('../../backend/services/pdfService');
-const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
 
@@ -75,27 +73,36 @@ exports.handler = async (event, context) => {
         case 'checkout.session.completed':
           const session = eventObj.data.object;
           
-          // Get file ID from client reference ID
-          const fileId = session.client_reference_id;
+          // Get file ID from client reference ID or metadata
+          const fileId = session.client_reference_id || session.metadata.fileId;
           const fileName = session.metadata?.fileName || 'document_reparat.pdf';
-          const userEmail = session.customer_email;
+          
+          if (!fileId) {
+            console.error('Missing file ID in webhook event');
+            return {
+              statusCode: 400,
+              headers,
+              body: JSON.stringify({ error: 'Missing file ID' })
+            };
+          }
           
           console.log(`Payment completed for file: ${fileId}`);
           
-          // In a real implementation, you would:
-          // 1. Mark the payment as completed in your database
-          // 2. Send a success notification to the user
-          // 3. Prepare the file for download
+          // Verify the file exists
+          const filePath = path.join(tmpDir, `${fileId}.txt`);
+          if (!fs.existsSync(filePath)) {
+            console.error('File not found for download:', filePath);
+            return {
+              statusCode: 404,
+              headers,
+              body: JSON.stringify({ error: 'File not found for download' })
+            };
+          }
           
-          // For this implementation, we just log the completion
-          console.log('Payment processed successfully for file:', fileId);
+          // Log successful payment processing
+          console.log(`Payment processed successfully for file: ${fileId}`);
           
           break;
-        
-        // Add other event types you want to handle:
-        // case 'payment_intent.succeeded':
-        // case 'charge.refunded':
-        // etc.
         
         default:
           console.log(`Unhandled event type: ${eventObj.type}`);

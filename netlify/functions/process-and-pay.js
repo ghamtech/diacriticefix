@@ -80,7 +80,7 @@ exports.handler = async (event, context) => {
       const filePath = path.join(tmpDir, `${processedFile.fileId}.txt`);
       fs.writeFileSync(filePath, processedFile.processedPdf);
       
-      // Create Stripe payment session
+      // Create Stripe payment session with proper redirect URLs
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [{
@@ -95,7 +95,8 @@ exports.handler = async (event, context) => {
           quantity: 1,
         }],
         mode: 'payment',
-        success_url: `${process.env.BASE_URL}/download.html?file_id=${processedFile.fileId}&session_id={CHECKOUT_SESSION_ID}`,
+        // Proper redirect URLs after payment
+        success_url: `${process.env.BASE_URL}/download.html?file_id=${processedFile.fileId}`,
         cancel_url: `${process.env.BASE_URL}/?cancelled=true`,
         client_reference_id: processedFile.fileId,
         metadata: {
@@ -105,6 +106,7 @@ exports.handler = async (event, context) => {
       });
       
       console.log('Stripe session created successfully');
+      console.log('Success URL:', session.success_url);
       
       return {
         statusCode: 200,

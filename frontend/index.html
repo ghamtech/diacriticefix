@@ -18,8 +18,8 @@
     <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml">
     <link rel="icon" type="image/png" href="favicon.png">
     <!-- Stripe.js -->
-    <script async src="https://js.stripe.com/v3/buy-button.js"></script>
     <script src="https://js.stripe.com/v3/"></script>
+    <script async src="https://js.stripe.com/v3/buy-button.js"></script>
 </head>
 <body>
     <header>
@@ -136,7 +136,7 @@
             
             <div class="faq-item">
                 <div class="faq-header">
-                    <h3>Este legal să folosesc acest serviciu?</h3>
+                    <h3>Este legal să folosim acest serviciu?</h3>
                     <span>+</span>
                 </div>
                 <div class="faq-content">
@@ -252,6 +252,7 @@
         const processingMessage = document.getElementById('processingMessage');
         const progressFill = document.getElementById('progressFill');
         let uploadedFile = null;
+        let processingFileId = null;
         
         // Stripe initialization with live key
         const stripe = Stripe('pk_live_51SbKtIRvhJNCyR7MHEJZnVmJW1kgGTc6KysHLY45PzkLBTv6FrhomUbuyiN3mZbIOKOW3YlS8ksDeYqkIZR25Pyq006CJY9pzw');
@@ -279,11 +280,11 @@
         
         document.getElementById('privacyAgreeBtn').addEventListener('click', () => {
             privacyPopup.classList.remove('active');
-            prepareForPayment();
+            processAndPrepareForPayment();
         });
         
         // PDF processing and payment preparation (NO EMAIL REQUIRED)
-        async function prepareForPayment() {
+        async function processAndPrepareForPayment() {
             if (!uploadedFile) {
                 alert('Vă rugăm să încărcați un fișier PDF!');
                 return;
@@ -341,6 +342,9 @@
                         if (!response.ok || !result.success) {
                             throw new Error(result.error || 'A apărut o eroare la procesarea fișierului');
                         }
+                        
+                        // Store file ID for download after payment
+                        processingFileId = result.fileId;
                         
                         // Show payment container
                         processingStatus.classList.add('hidden');
@@ -490,6 +494,7 @@
             repairBtn.classList.remove('btn-processing');
             pdfUpload.value = '';
             uploadedFile = null;
+            processingFileId = null;
             paymentContainer.classList.add('hidden');
             processingStatus.classList.add('hidden');
         }
