@@ -59,22 +59,23 @@ exports.handler = async (event, context) => {
     }
     
     // Get the important parts from the request
-    const { fileData, fileName } = body;
+    const { fileData, fileName, userEmail } = body;
     
     // Make sure we have everything we need
-    if (!fileData || !fileName) {
+    if (!fileData || !fileName || !userEmail) {
       return { 
         statusCode: 400, 
         headers,
         body: JSON.stringify({ 
-          error: 'Missing information - need file and filename',
+          error: 'Missing information - need file, filename, and email',
           fileData: !!fileData,
-          fileName: !!fileName
+          fileName: !!fileName,
+          userEmail: !!userEmail
         }) 
       };
     }
     
-    console.log(`Fixing file: ${fileName}`);
+    console.log(`Fixing file: ${fileName} for email: ${userEmail}`);
     
     try {
       // Create our PDF fixing toolbox
@@ -86,7 +87,7 @@ exports.handler = async (event, context) => {
       console.log('File is ready to fix, size:', fileBuffer.length);
       
       // Fix the PDF file!
-      const processedFile = await pdfService.processPdfFile(fileBuffer, fileName);
+      const processedFile = await pdfService.processPdfFile(fileBuffer, userEmail, fileName);
       console.log('PDF fixed successfully', processedFile);
       
       // Save the fixed file temporarily
@@ -114,9 +115,11 @@ exports.handler = async (event, context) => {
         cancel_url: `${process.env.BASE_URL}/`,
         // Our special ID to connect payment to file
         client_reference_id: processedFile.fileId,
+        customer_email: userEmail,
         metadata: {
           fileId: processedFile.fileId,
-          fileName: fileName
+          fileName: fileName,
+          userEmail: userEmail
         }
       });
       

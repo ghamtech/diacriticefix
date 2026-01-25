@@ -5,6 +5,71 @@
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
+.page-header {
+    background-color: #1a237e;
+    color: white;
+    padding: 20px 0;
+    text-align: center;
+    margin-bottom: 30px;
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.page-footer {
+    text-align: center;
+    margin-top: 30px;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.payment-thankyou {
+    text-align: center;
+    padding: 40px 20px;
+    max-width: 600px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.payment-thankyou h2 {
+    color: #1a237e;
+    margin-bottom: 20px;
+}
+
+.payment-thankyou p {
+    font-size: 1.2rem;
+    margin-bottom: 30px;
+}
+
+.download-link {
+    display: inline-block;
+    background: #4CAF50;
+    color: white;
+    padding: 12px 30px;
+    border-radius: 5px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.3s;
+    margin-top: 20px;
+}
+
+.download-link:hover {
+    background: #45a049;
+}
+
+@media (max-width: 768px) {
+    .payment-thankyou {
+        padding: 30px 15px;
+    }
+    
+    .download-link {
+        width: 100%;
+        padding: 12px;
+        text-align: center;
+    }
+}
+
 body {
     background-color: #f8f9fa;
     color: #333;
