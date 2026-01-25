@@ -17,9 +17,10 @@
     <link rel="stylesheet" href="style.css">
     <link rel="sitemap" type="application/xml" title="Sitemap" href="/sitemap.xml">
     <link rel="icon" type="image/png" href="favicon.png">
-    <!-- Stripe.js -->
+    <!-- Stripe.js - Load BEFORE buy button -->
     <script src="https://js.stripe.com/v3/"></script>
-    <script async src="https://js.stripe.com/v3/buy-button.js"></script>
+    <!-- Defer loading of buy button script -->
+    <script async src="https://js.stripe.com/v3/buy-button.js" defer></script>
 </head>
 <body>
     <header>
@@ -110,10 +111,9 @@
         
         <div class="payment-container hidden" id="paymentContainer">
             <h3>Completează plata pentru a descărca PDF-ul reparat</h3>
-            <stripe-buy-button
-              buy-button-id="buy_btn_1St4J7RvhJNCyR7MxKUWRDIf"
-              publishable-key="pk_live_51SbKtIRvhJNCyR7MHEJZnVmJW1kgGTc6KysHLY45PzkLBTv6FrhomUbuyiN3mZbIOKOW3YlS8ksDeYqkIZR25Pyq006CJY9pzw">
-            </stripe-buy-button>
+            <div id="stripeBuyButtonContainer">
+                <!-- Buy button will be inserted here dynamically -->
+            </div>
             <p class="small-text">Plata securizată prin Stripe. Acceptăm toate cardurile majore.</p>
         </div>
         
@@ -136,7 +136,7 @@
             
             <div class="faq-item">
                 <div class="faq-header">
-                    <h3>Este legal să folosim acest serviciu?</h3>
+                    <h3>Este legal să folosesc acest serviciu?</h3>
                     <span>+</span>
                 </div>
                 <div class="faq-content">
@@ -232,278 +232,332 @@
     </footer>
 
     <script>
-        // DOM elements
-        const pdfUpload = document.getElementById('pdfUpload');
-        const browseBtn = document.getElementById('browseBtn');
-        const repairBtn = document.getElementById('repairBtn');
-        const dropArea = document.getElementById('dropArea');
-        const termsPopup = document.getElementById('termsPopup');
-        const privacyPopup = document.getElementById('privacyPopup');
-        const paymentContainer = document.getElementById('paymentContainer');
-        const thankYouPage = document.getElementById('thankYouPage');
-        const downloadLink = document.getElementById('downloadLink');
-        const filePreview = document.getElementById('filePreview');
-        const uploadInstructions = document.getElementById('uploadInstructions');
-        const fileName = document.getElementById('fileName');
-        const fileSize = document.getElementById('fileSize');
-        const uploadStatus = document.getElementById('uploadStatus');
-        const statusFileName = document.getElementById('statusFileName');
-        const processingStatus = document.getElementById('processingStatus');
-        const processingMessage = document.getElementById('processingMessage');
-        const progressFill = document.getElementById('progressFill');
-        let uploadedFile = null;
-        let processingFileId = null;
-        
-        // Stripe initialization with live key
-        const stripe = Stripe('pk_live_51SbKtIRvhJNCyR7MHEJZnVmJW1kgGTc6KysHLY45PzkLBTv6FrhomUbuyiN3mZbIOKOW3YlS8ksDeYqkIZR25Pyq006CJY9pzw');
-        
-        // Event listeners
-        browseBtn.addEventListener('click', () => pdfUpload.click());
-        pdfUpload.addEventListener('change', handleFileSelect);
-        repairBtn.addEventListener('click', showTerms);
-        dropArea.addEventListener('dragover', handleDragOver);
-        dropArea.addEventListener('dragleave', handleDragLeave);
-        dropArea.addEventListener('drop', handleDrop);
-        termsPopup.addEventListener('click', closePopup);
-        privacyPopup.addEventListener('click', closePopup);
-        
-        // Terms and conditions popup
-        document.getElementById('agreeBtn').addEventListener('click', () => {
-            termsPopup.classList.remove('active');
-            privacyPopup.classList.add('active');
-        });
-        
-        document.getElementById('disagreeBtn').addEventListener('click', () => {
-            termsPopup.classList.remove('active');
-            alert('Ne pare rău, dar procesul nu poate continua.');
-        });
-        
-        document.getElementById('privacyAgreeBtn').addEventListener('click', () => {
-            privacyPopup.classList.remove('active');
-            processAndPrepareForPayment();
-        });
-        
-        // PDF processing and payment preparation (NO EMAIL REQUIRED)
-        async function processAndPrepareForPayment() {
-            if (!uploadedFile) {
-                alert('Vă rugăm să încărcați un fișier PDF!');
-                return;
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM elements
+            const pdfUpload = document.getElementById('pdfUpload');
+            const browseBtn = document.getElementById('browseBtn');
+            const repairBtn = document.getElementById('repairBtn');
+            const dropArea = document.getElementById('dropArea');
+            const termsPopup = document.getElementById('termsPopup');
+            const privacyPopup = document.getElementById('privacyPopup');
+            const paymentContainer = document.getElementById('paymentContainer');
+            const stripeBuyButtonContainer = document.getElementById('stripeBuyButtonContainer');
+            const thankYouPage = document.getElementById('thankYouPage');
+            const downloadLink = document.getElementById('downloadLink');
+            const filePreview = document.getElementById('filePreview');
+            const uploadInstructions = document.getElementById('uploadInstructions');
+            const fileName = document.getElementById('fileName');
+            const fileSize = document.getElementById('fileSize');
+            const uploadStatus = document.getElementById('uploadStatus');
+            const statusFileName = document.getElementById('statusFileName');
+            const processingStatus = document.getElementById('processingStatus');
+            const processingMessage = document.getElementById('processingMessage');
+            const progressFill = document.getElementById('progressFill');
+            let uploadedFile = null;
+            let processingFileId = null;
+            
+            // Stripe initialization with live key
+            const stripePromise = new Promise((resolve) => {
+                // Wait for Stripe to load
+                if (typeof Stripe !== 'undefined') {
+                    resolve(Stripe('pk_live_51SbKtIRvhJNCyR7MHEJZnVmJW1kgGTc6KysHLY45PzkLBTv6FrhomUbuyiN3mZbIOKOW3YlS8ksDeYqkIZR25Pyq006CJY9pzw'));
+                } else {
+                    const checkStripe = setInterval(() => {
+                        if (typeof Stripe !== 'undefined') {
+                            clearInterval(checkStripe);
+                            resolve(Stripe('pk_live_51SbKtIRvhJNCyR7MHEJZnVmJW1kgGTc6KysHLY45PzkLBTv6FrhomUbuyiN3mZbIOKOW3YlS8ksDeYqkIZR25Pyq006CJY9pzw'));
+                        }
+                    }, 100);
+                }
+            });
+            
+            // Event listeners
+            browseBtn.addEventListener('click', () => pdfUpload.click());
+            pdfUpload.addEventListener('change', handleFileSelect);
+            repairBtn.addEventListener('click', showTerms);
+            dropArea.addEventListener('dragover', handleDragOver);
+            dropArea.addEventListener('dragleave', handleDragLeave);
+            dropArea.addEventListener('drop', handleDrop);
+            termsPopup.addEventListener('click', closePopup);
+            privacyPopup.addEventListener('click', closePopup);
+            
+            // Terms and conditions popup
+            document.getElementById('agreeBtn').addEventListener('click', () => {
+                termsPopup.classList.remove('active');
+                privacyPopup.classList.add('active');
+            });
+            
+            document.getElementById('disagreeBtn').addEventListener('click', () => {
+                termsPopup.classList.remove('active');
+                alert('Ne pare rău, dar procesul nu poate continua.');
+            });
+            
+            document.getElementById('privacyAgreeBtn').addEventListener('click', () => {
+                privacyPopup.classList.remove('active');
+                processAndPrepareForPayment();
+            });
+            
+            // PDF processing and payment preparation (NO EMAIL REQUIRED)
+            async function processAndPrepareForPayment() {
+                if (!uploadedFile) {
+                    alert('Vă rugăm să încărcați un fișier PDF!');
+                    return;
+                }
+                
+                try {
+                    // Show processing state
+                    repairBtn.disabled = true;
+                    repairBtn.textContent = 'Se procesează...';
+                    repairBtn.classList.add('btn-processing');
+                    thankYouPage.classList.add('hidden');
+                    downloadLink.classList.add('hidden');
+                    uploadStatus.classList.add('hidden');
+                    processingStatus.classList.remove('hidden');
+                    
+                    // Reset progress
+                    let progress = 0;
+                    progressFill.style.width = '0%';
+                    processingMessage.textContent = 'Se procesează fișierul... 0%';
+                    
+                    // Simulate progress
+                    const progressInterval = setInterval(() => {
+                        progress += Math.random() * 5;
+                        if (progress > 95) progress = 95;
+                        
+                        progressFill.style.width = `${progress}%`;
+                        processingMessage.textContent = `Se procesează fișierul... ${Math.floor(progress)}%`;
+                    }, 300);
+                    
+                    // Create FormData object
+                    const reader = new FileReader();
+                    reader.onload = async function(e) {
+                        clearInterval(progressInterval);
+                        
+                        const base64File = e.target.result.split(',')[1]; // Remove data URL prefix
+                        
+                        try {
+                            console.log('Starting file processing...');
+                            
+                            // Send to Netlify function for processing
+                            const response = await fetch('/.netlify/functions/process-and-pay', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify({
+                                    fileData: base64File,
+                                    fileName: uploadedFile.name
+                                })
+                            });
+                            
+                            const result = await response.json();
+                            console.log('API Response:', result);
+                            
+                            if (!response.ok || !result.success) {
+                                throw new Error(result.error || 'A apărut o eroare la procesarea fișierului');
+                            }
+                            
+                            // Store file ID for download after payment
+                            processingFileId = result.fileId;
+                            
+                            // Show payment container and initialize Stripe buy button
+                            processingStatus.classList.add('hidden');
+                            paymentContainer.classList.remove('hidden');
+                            
+                            // Initialize Stripe buy button after API response
+                            await initStripeBuyButton();
+                            
+                        } catch (error) {
+                            clearInterval(progressInterval);
+                            console.error('Error processing PDF:', error);
+                            alert('A apărut o eroare la procesarea fișierului. Vă rugăm să încercați din nou.\n\n' + error.message);
+                            // Reset UI state on error
+                            resetProcessingUI();
+                        }
+                    };
+                    
+                    reader.readAsDataURL(uploadedFile);
+                    
+                } catch (error) {
+                    console.error('Error in initial processing:', error);
+                    alert('A apărut o eroare. Vă rugăm să încercați din nou.\n\n' + error.message);
+                    // Reset UI state on error
+                    resetProcessingUI();
+                }
             }
             
-            try {
-                // Show processing state
-                repairBtn.disabled = true;
-                repairBtn.textContent = 'Se procesează...';
-                repairBtn.classList.add('btn-processing');
-                thankYouPage.classList.add('hidden');
-                downloadLink.classList.add('hidden');
-                uploadStatus.classList.add('hidden');
-                processingStatus.classList.remove('hidden');
-                
-                // Reset progress
-                let progress = 0;
-                progressFill.style.width = '0%';
-                processingMessage.textContent = 'Se procesează fișierul... 0%';
-                
-                // Simulate progress
-                const progressInterval = setInterval(() => {
-                    progress += Math.random() * 5;
-                    if (progress > 95) progress = 95;
+            // Initialize Stripe buy button
+            async function initStripeBuyButton() {
+                try {
+                    console.log('Initializing Stripe buy button');
+                    const stripe = await stripePromise;
                     
-                    progressFill.style.width = `${progress}%`;
-                    processingMessage.textContent = `Se procesează fișierul... ${Math.floor(progress)}%`;
-                }, 300);
+                    // Clear container first
+                    stripeBuyButtonContainer.innerHTML = '';
+                    
+                    // Create buy button element
+                    const buyButton = document.createElement('stripe-buy-button');
+                    buyButton.setAttribute('buy-button-id', 'buy_btn_1St4J7RvhJNCyR7MxKUWRDIf');
+                    buyButton.setAttribute('publishable-key', 'pk_live_51SbKtIRvhJNCyR7MHEJZnVmJW1kgGTc6KysHLY45PzkLBTv6FrhomUbuyiN3mZbIOKOW3YlS8ksDeYqkIZR25Pyq006CJY9pzw');
+                    
+                    // Add to container
+                    stripeBuyButtonContainer.appendChild(buyButton);
+                    
+                    console.log('Stripe buy button initialized successfully');
+                    
+                } catch (error) {
+                    console.error('Error initializing Stripe buy button:', error);
+                    alert('A apărut o eroare la inițializarea butonului de plată. Vă rugăm să încercați din nou.');
+                    // Reset UI state on error
+                    resetProcessingUI();
+                }
+            }
+            
+            // File handling functions
+            function handleFileSelect(e) {
+                const file = e.target.files[0];
+                if (file && file.type === 'application/pdf') {
+                    handleFileUpload(file);
+                } else if (file) {
+                    alert('Vă rugăm să încărcați un fișier PDF valid!');
+                    pdfUpload.value = '';
+                }
+            }
+            
+            function handleDrop(e) {
+                e.preventDefault();
+                dropArea.classList.remove('drag-over');
                 
-                // Create FormData object
-                const reader = new FileReader();
-                reader.onload = async function(e) {
-                    clearInterval(progressInterval);
-                    
-                    const base64File = e.target.result.split(',')[1]; // Remove data URL prefix
-                    
-                    try {
-                        console.log('Starting file processing...');
-                        
-                        // Send to Netlify function for processing
-                        const response = await fetch('/.netlify/functions/process-and-pay', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify({
-                                fileData: base64File,
-                                fileName: uploadedFile.name
-                            })
-                        });
-                        
-                        const result = await response.json();
-                        console.log('API Response:', result);
-                        
-                        if (!response.ok || !result.success) {
-                            throw new Error(result.error || 'A apărut o eroare la procesarea fișierului');
-                        }
-                        
-                        // Store file ID for download after payment
-                        processingFileId = result.fileId;
-                        
-                        // Show payment container
-                        processingStatus.classList.add('hidden');
-                        paymentContainer.classList.remove('hidden');
-                        
-                    } catch (error) {
-                        clearInterval(progressInterval);
-                        console.error('Error processing PDF:', error);
-                        alert('A apărut o eroare la procesarea fișierului. Vă rugăm să încercați din nou.\n\n' + error.message);
-                        repairBtn.disabled = false;
-                        repairBtn.textContent = 'Repară PDF-ul acum';
-                        repairBtn.classList.remove('btn-processing');
-                        processingStatus.classList.add('hidden');
+                const files = e.dataTransfer.files;
+                if (files.length) {
+                    const file = files[0];
+                    if (file.type === 'application/pdf') {
+                        handleFileUpload(file);
+                        // Clear the input value to allow uploading the same file again
+                        pdfUpload.value = '';
+                    } else {
+                        alert('Vă rugăm să încărcați un fișier PDF valid!');
                     }
-                };
+                }
+            }
+            
+            function handleFileUpload(file) {
+                uploadedFile = file;
+                updateUIAfterUpload(file);
+            }
+            
+            function updateUIAfterUpload(file) {
+                // Update file preview
+                fileName.textContent = file.name;
+                fileSize.textContent = formatFileSize(file.size);
                 
-                reader.readAsDataURL(uploadedFile);
+                // Show file preview and hide upload instructions
+                filePreview.classList.remove('hidden');
+                uploadInstructions.classList.add('hidden');
                 
-            } catch (error) {
-                console.error('Error processing PDF:', error);
-                alert('A apărut o eroare la procesarea fișierului. Vă rugăm să încercați din nou.\n\n' + error.message);
+                // Update upload status
+                statusFileName.textContent = file.name;
+                uploadStatus.classList.remove('hidden');
+                
+                // Enable repair button
+                repairBtn.disabled = false;
+                repairBtn.textContent = 'Repară PDF-ul acum';
+                
+                // Add visual feedback to drop area
+                dropArea.classList.add('file-uploaded');
+            }
+            
+            function formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+            
+            function handleDragOver(e) {
+                e.preventDefault();
+                dropArea.classList.add('drag-over');
+            }
+            
+            function handleDragLeave(e) {
+                e.preventDefault();
+                dropArea.classList.remove('drag-over');
+            }
+            
+            function closePopup(e) {
+                if (e.target === termsPopup) {
+                    termsPopup.classList.remove('active');
+                }
+                if (e.target === privacyPopup) {
+                    privacyPopup.classList.remove('active');
+                }
+            }
+            
+            function showTerms(e) {
+                e.preventDefault();
+                if (!uploadedFile) {
+                    alert('Vă rugăm să încărcați un fișier PDF!');
+                    return;
+                }
+                termsPopup.classList.add('active');
+            }
+            
+            // Reset UI if processing fails
+            function resetProcessingUI() {
                 repairBtn.disabled = false;
                 repairBtn.textContent = 'Repară PDF-ul acum';
                 repairBtn.classList.remove('btn-processing');
+                processingStatus.classList.add('hidden');
+                paymentContainer.classList.add('hidden');
+                thankYouPage.classList.add('hidden');
+                downloadLink.classList.add('hidden');
             }
-        }
-        
-        // File handling functions
-        function handleFileSelect(e) {
-            const file = e.target.files[0];
-            if (file && file.type === 'application/pdf') {
-                handleFileUpload(file);
-            } else if (file) {
-                alert('Vă rugăm să încărcați un fișier PDF valid!');
-                pdfUpload.value = '';
-            }
-        }
-        
-        function handleDrop(e) {
-            e.preventDefault();
-            dropArea.classList.remove('drag-over');
             
-            const files = e.dataTransfer.files;
-            if (files.length) {
-                const file = files[0];
-                if (file.type === 'application/pdf') {
-                    handleFileUpload(file);
-                    // Clear the input value to allow uploading the same file again
-                    pdfUpload.value = '';
-                } else {
-                    alert('Vă rugăm să încărcați un fișier PDF valid!');
-                }
-            }
-        }
-        
-        function handleFileUpload(file) {
-            uploadedFile = file;
-            updateUIAfterUpload(file);
-        }
-        
-        function updateUIAfterUpload(file) {
-            // Update file preview
-            fileName.textContent = file.name;
-            fileSize.textContent = formatFileSize(file.size);
-            
-            // Show file preview and hide upload instructions
-            filePreview.classList.remove('hidden');
-            uploadInstructions.classList.add('hidden');
-            
-            // Update upload status
-            statusFileName.textContent = file.name;
-            uploadStatus.classList.remove('hidden');
-            
-            // Enable repair button
-            repairBtn.disabled = false;
-            repairBtn.textContent = 'Repară PDF-ul acum';
-            
-            // Add visual feedback to drop area
-            dropArea.classList.add('file-uploaded');
-        }
-        
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
-        
-        function handleDragOver(e) {
-            e.preventDefault();
-            dropArea.classList.add('drag-over');
-        }
-        
-        function handleDragLeave(e) {
-            e.preventDefault();
-            dropArea.classList.remove('drag-over');
-        }
-        
-        function closePopup(e) {
-            if (e.target === termsPopup) {
-                termsPopup.classList.remove('active');
-            }
-            if (e.target === privacyPopup) {
-                privacyPopup.classList.remove('active');
-            }
-        }
-        
-        function showTerms(e) {
-            e.preventDefault();
-            if (!uploadedFile) {
-                alert('Vă rugăm să încărcați un fișier PDF!');
-                return;
-            }
-            termsPopup.classList.add('active');
-        }
-        
-        // FAQ toggle
-        document.querySelectorAll('.faq-header').forEach(header => {
-            header.addEventListener('click', () => {
-                const content = header.nextElementSibling;
-                const isActive = content.classList.contains('active');
-                
-                // Close all
-                document.querySelectorAll('.faq-content').forEach(c => {
-                    c.classList.remove('active');
+            // FAQ toggle
+            document.querySelectorAll('.faq-header').forEach(header => {
+                header.addEventListener('click', () => {
+                    const content = header.nextElementSibling;
+                    const isActive = content.classList.contains('active');
+                    
+                    // Close all
+                    document.querySelectorAll('.faq-content').forEach(c => {
+                        c.classList.remove('active');
+                    });
+                    
+                    // Toggle current
+                    if (!isActive) {
+                        content.classList.add('active');
+                        header.querySelector('span').textContent = '-';
+                    } else {
+                        header.querySelector('span').textContent = '+';
+                    }
                 });
-                
-                // Toggle current
-                if (!isActive) {
-                    content.classList.add('active');
-                    header.querySelector('span').textContent = '-';
-                } else {
-                    header.querySelector('span').textContent = '+';
+            });
+            
+            // Reset UI after download or on page refresh
+            function resetUploadUI() {
+                filePreview.classList.add('hidden');
+                uploadInstructions.classList.remove('hidden');
+                uploadStatus.classList.add('hidden');
+                dropArea.classList.remove('file-uploaded');
+                repairBtn.disabled = true;
+                repairBtn.textContent = 'Repară PDF-ul acum';
+                repairBtn.classList.remove('btn-processing');
+                pdfUpload.value = '';
+                uploadedFile = null;
+                processingFileId = null;
+                paymentContainer.classList.add('hidden');
+                processingStatus.classList.add('hidden');
+                stripeBuyButtonContainer.innerHTML = '';
+            }
+            
+            // Reset UI if page is refreshed after payment
+            window.addEventListener('beforeunload', function() {
+                if (!thankYouPage.classList.contains('hidden')) {
+                    resetUploadUI();
                 }
             });
-        });
-        
-        // Reset UI after download or on page refresh
-        function resetUploadUI() {
-            filePreview.classList.add('hidden');
-            uploadInstructions.classList.remove('hidden');
-            uploadStatus.classList.add('hidden');
-            dropArea.classList.remove('file-uploaded');
-            repairBtn.disabled = true;
-            repairBtn.textContent = 'Repară PDF-ul acum';
-            repairBtn.classList.remove('btn-processing');
-            pdfUpload.value = '';
-            uploadedFile = null;
-            processingFileId = null;
-            paymentContainer.classList.add('hidden');
-            processingStatus.classList.add('hidden');
-        }
-        
-        // Reset UI if page is refreshed after payment
-        window.addEventListener('beforeunload', function() {
-            if (!thankYouPage.classList.contains('hidden')) {
-                resetUploadUI();
-            }
         });
     </script>
 </body>

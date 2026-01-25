@@ -18,5 +18,13 @@
   to = "/download.html"
   status = 200
 
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'self' https://js.stripe.com https://checkout.stripe.com https://buy.stripe.com https://*.stripe.com https://*.stripe.network https://pdf-temp-files.s3.us-west-2.amazonaws.com https://diacriticefix.netlify.app; script-src 'self' 'unsafe-inline' https://js.stripe.com https://checkout.stripe.com https://buy.stripe.com https://*.stripe.com https://*.stripe.network https://kit.fontawesome.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https://*.stripe.com https://*.stripe.network https://diacriticefix.netlify.app https://pdf-temp-files.s3.us-west-2.amazonaws.com; connect-src 'self' https://api.pdf.co https://api.stripe.com https://diacriticefix.netlify.app https://*.stripe.com https://*.stripe.network; frame-src 'self' https://js.stripe.com https://checkout.stripe.com https://buy.stripe.com https://*.stripe.com; font-src 'self' https://fonts.gstatic.com https://kit.fontawesome.com; object-src 'none'; base-uri 'self'; form-action 'self'"
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
 [functions]
   node_bundler = "esbuild"

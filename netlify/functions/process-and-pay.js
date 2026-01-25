@@ -21,7 +21,8 @@ exports.handler = async (event, context) => {
     const headers = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Headers': 'Content-Type',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS'
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Cache-Control': 'no-cache'
     };
     
     // Handle preflight request
@@ -80,7 +81,7 @@ exports.handler = async (event, context) => {
       const filePath = path.join(tmpDir, `${processedFile.fileId}.txt`);
       fs.writeFileSync(filePath, processedFile.processedPdf);
       
-      // Create Stripe payment session with proper redirect URLs
+      // Create Stripe payment session
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [{
@@ -95,7 +96,6 @@ exports.handler = async (event, context) => {
           quantity: 1,
         }],
         mode: 'payment',
-        // Proper redirect URLs after payment
         success_url: `${process.env.BASE_URL}/download.html?file_id=${processedFile.fileId}`,
         cancel_url: `${process.env.BASE_URL}/?cancelled=true`,
         client_reference_id: processedFile.fileId,
@@ -106,7 +106,6 @@ exports.handler = async (event, context) => {
       });
       
       console.log('Stripe session created successfully');
-      console.log('Success URL:', session.success_url);
       
       return {
         statusCode: 200,
@@ -139,7 +138,8 @@ exports.handler = async (event, context) => {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Cache-Control': 'no-cache'
       },
       body: JSON.stringify({
         error: 'Server error',
