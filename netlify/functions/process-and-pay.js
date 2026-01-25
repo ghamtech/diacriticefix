@@ -1,6 +1,8 @@
 const Stripe = require('stripe');
 const PdfService = require('../../backend/services/pdfService');
 const { v4: uuidv4 } = require('uuid');
+const fs = require('fs');
+const path = require('path');
 
 // Initialize Stripe with the secret key
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
@@ -8,8 +10,6 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 });
 
 // Create temporary directory if it doesn't exist
-const path = require('path');
-const fs = require('fs');
 const tmpDir = '/tmp/processed-files';
 if (!fs.existsSync(tmpDir)) {
   fs.mkdirSync(tmpDir, { recursive: true });
@@ -50,22 +50,21 @@ exports.handler = async (event, context) => {
       };
     }
     
-    const { fileData, fileName, userEmail } = body;
+    const { fileData, fileName } = body;
     
-    if (!fileData || !fileName || !userEmail) {
+    if (!fileData || !fileName) {
       return { 
         statusCode: 400, 
         headers,
         body: JSON.stringify({ 
           error: 'Missing required parameters',
           fileData: !!fileData,
-          fileName: !!fileName,
-          userEmail: !!userEmail
+          fileName: !!fileName
         }) 
       };
     }
     
-    console.log(`Processing file: ${fileName} for user: ${userEmail}`);
+    console.log(`Processing file: ${fileName}`);
     
     try {
       // Process PDF file
@@ -74,64 +73,39 @@ exports.handler = async (event, context) => {
       
       console.log('File buffer created, size:', fileBuffer.length);
       
-      const processedFile = await pdfService.processPdfFile(fileBuffer, userEmail, fileName);
+      // Check file size (10MB limit)
+      if (fileBuffer.length > 10 * 1024 * 1024) {
+        throw new Error('File size exceeds 10MB limit. Please use a smaller PDF file.');
+      }
+      
+      const processedFile = await pdfService.processPdfFile(fileBuffer, fileName);
       console.log('PDF processing completed', processedFile);
       
       // Save file temporarily
       const filePath = path.join(tmpDir, `${processedFile.fileId}.txt`);
       fs.writeFileSync(filePath, processedFile.processedPdf);
       
-      // Create Stripe payment session
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        line_items: [{
-          price: {
-            currency: 'eur',
-            product: {
-              name: 'PDF cu diacritice reparate',
-              description: fileName
-            },
-            unit_amount: 199, // 1.99€ in cents
-          },
-          quantity: 1,
-        }],
-        mode: 'payment',
-        success_url: `${process.env.BASE_URL}/download.html?file_id=${processedFile.fileId}&session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.BASE_URL}/?cancelled=true`,
-        client_reference_id: processedFile.fileId,
-        customer_email: userEmail,
-        meta: {
-          fileId: processedFile.fileId,
-          fileName: fileName,
-          userEmail: userEmail
-        }
-      });
-      
-      console.log('Stripe session created successfully');
+      // Return success with file ID for download after payment
+      console.log('File processing completed successfully');
       
       return {
         statusCode: 200,
         headers,
         body: JSON.stringify({
           success: true,
-          fileId: processedFile.fileId,
-          sessionId: session.id,
-          paymentUrl: session.url
+          fileId: processedFile.fileId
         })
       };
       
     } catch (processingError) {
       console.error('Error during file processing:', processingError);
       return {
-        statusCode: 200, // Still return 200 so the frontend can proceed
+        statusCode: 500,
         headers,
         body: JSON.stringify({
-          success: true, // Allow the process to continue
-          fileId: uuidv4(),
-          sessionId: 'error_session_' + Date.now(),
-          paymentUrl: `${process.env.BASE_URL}/download.html?error=processing_failed&message=${encodeURIComponent(processingError.message)}`,
-          error: processingError.message,
-          isFallback: true
+          success: false,
+          error: 'Failed to process PDF file',
+          details: processingError.message
         })
       };
     }

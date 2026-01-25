@@ -1,6 +1,6 @@
 const axios = require('axios');
-const { v4: uuidv4 } = require('uuid');
 const FormData = require('form-data');
+const { v4: uuidv4 } = require('uuid');
 
 class PdfService {
     constructor() {
@@ -20,10 +20,23 @@ class PdfService {
             'Ã£Æ\'Å¢': 'ț',
             'Ã£Æ\'Ëœ': 'Ș',
             'Ã£Æ\'Å£': 'Ț',
-            'Ã£â€ž': 'ă',
-            'Ð”': 'D',
-            'Ð¸': 'i',
-            'Ðµ': 'e'
+            'â€žÆ\'': 'ă',
+            'Ã¢': 'â',
+            'Â¢': '',
+            'â€': '',
+            'â€œ': '"',
+            'â€': '"',
+            'ÅŸ': 'ș',
+            'Å£': 'ț',
+            'Äƒ': 'ă',
+            'Ã®': 'î',
+            'Ã£': 'ă',
+            'Ä‚': 'Ă',
+            'È™': 'ș',
+            'È›': 'ț',
+            'Ä°': 'İ',
+            'Åž': 'Ș',
+            'Å¢': 'Ț'
         };
         
         let fixedText = text;
@@ -64,7 +77,8 @@ class PdfService {
                 throw new Error(response.data.message || 'Error uploading file to PDF.co');
             }
             
-            return response.data.url;
+            // Clean URL - remove any special characters or line breaks
+            return response.data.url.trim();
         } catch (error) {
             console.error('Error uploading file:', error.response?.data || error.message);
             throw error;
@@ -73,14 +87,12 @@ class PdfService {
 
     async extractTextFromUrl(fileUrl) {
         try {
+            // Simplified request - first try without OCR
             const response = await axios.post(
                 `${this.baseUrl}/pdf/convert/to/text`,
                 {
                     url: fileUrl,
                     inline: true,
-                    ocr: true,
-                    ocrLanguage: "eng,ron",
-                    ocrMode: "auto",
                     async: false
                 },
                 {
@@ -88,12 +100,42 @@ class PdfService {
                         'x-api-key': this.apiKey,
                         'Content-Type': 'application/json'
                     },
-                    timeout: 120000
+                    timeout: 60000
                 }
             );
             
             if (response.data.error) {
-                throw new Error(response.data.message || 'Error extracting text from PDF');
+                console.log('Basic text extraction failed, trying with OCR...');
+                // Fallback to OCR if basic extraction fails
+                try {
+                    const ocrResponse = await axios.post(
+                        `${this.baseUrl}/pdf/convert/to/text`,
+                        {
+                            url: fileUrl,
+                            inline: true,
+                            ocr: true,
+                            ocrLanguage: "eng,ron",
+                            async: false
+                        },
+                        {
+                            headers: {
+                                'x-api-key': this.apiKey,
+                                'Content-Type': 'application/json'
+                            },
+                            timeout: 120000 // 2 minutes for OCR
+                        }
+                    );
+                    
+                    if (ocrResponse.data.error) {
+                        throw new Error(ocrResponse.data.message || 'OCR text extraction failed');
+                    }
+                    
+                    return ocrResponse.data.text;
+                } catch (ocrError) {
+                    console.error('OCR extraction failed:', ocrError.response?.data || ocrError.message);
+                    // Return a fallback result with the URL for manual processing
+                    return `PDF processing failed. Original file URL: ${fileUrl}. Please contact support for manual processing.`;
+                }
             }
             
             return response.data.text;
@@ -103,47 +145,41 @@ class PdfService {
         }
     }
 
-    async extractText(base64File) {
-        try {
-            const fileBuffer = Buffer.from(base64File, 'base64');
-            const fileUrl = await this.uploadFile(fileBuffer, 'temp.pdf');
-            return await this.extractTextFromUrl(fileUrl);
-        } catch (error) {
-            console.error('Error in extractText:', error);
-            throw error;
-        }
-    }
-
-    async processPdfFile(fileBuffer, userEmail, fileName) {
+    async processPdfFile(fileBuffer, fileName) {
         try {
             console.log('Starting PDF processing for file:', fileName);
             
-            // Convert buffer to base64
-            const base64File = fileBuffer.toString('base64');
-            console.log('Base64 conversion complete');
+            // Step 1: Upload file to get URL
+            const fileUrl = await this.uploadFile(fileBuffer, fileName);
+            console.log('File uploaded successfully, URL:', fileUrl);
             
-            // Extract text from PDF
-            console.log('Attempting text extraction...');
-            const originalText = await this.extractText(base64File);
-            
+            // Step 2: Extract text using the URL
+            const originalText = await this.extractTextFromUrl(fileUrl);
             console.log('Text extraction completed');
-            console.log('Text successfully extracted, fixing diacritics...');
-            const fixedText = this.fixDiacritics(originalText);
             
+            // Step 3: Fix diacritics
+            const fixedText = this.fixDiacritics(originalText);
             console.log('Diacritics fixed. Comparison:');
             console.log('Original text length:', originalText.length);
             console.log('Fixed text length:', fixedText.length);
             
-            // For now, we'll create a simple text file with the fixed content
+            // Step 4: Generate file ID and processed content
             const fileId = uuidv4();
-            const fixedContent = `PDF repaired successfully!\nOriginal file: ${fileName}\nEmail: ${userEmail}\n\nOriginal text (first 500 chars):\n${originalText.substring(0, 500)}\n\nFixed text (first 500 chars):\n${fixedText.substring(0, 500)}`;
+            const fixedContent = `PDF repaired successfully!
+Original file: ${fileName}
+
+Original text (first 500 chars):
+${originalText.substring(0, 500)}
+
+Fixed text (first 500 chars):
+${fixedText.substring(0, 500)}
+            `;
             
             console.log('PDF processing completed successfully');
             return {
                 fileId: fileId,
                 processedPdf: Buffer.from(fixedContent, 'utf-8'),
-                fileName: fileName,
-                userEmail: userEmail
+                fileName: fileName
             };
             
         } catch (error) {
@@ -155,15 +191,15 @@ class PdfService {
             });
             
             // Return a fallback result
+            const fileId = uuidv4();
             return {
-                fileId: uuidv4(),
-                processedPdf: Buffer.from('Error processing PDF. Please try again with a different file or contact support.'),
+                fileId: fileId,
+                processedPdf: Buffer.from('Error processing PDF. Please try with a smaller file or contact support.'),
                 fileName: fileName,
-                userEmail: userEmail,
                 error: error.message
             };
         }
     }
 }
 
-module.exports = PdfService; // Export the class itself, not an instance
+module.exports = PdfService;
