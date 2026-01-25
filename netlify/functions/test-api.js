@@ -1,7 +1,5 @@
 // This is like a test machine to check if our PDF fixing tools are working
-// We use it to make sure everything is connected properly
 
-// Get our PDF fixing toolbox
 const PdfService = require('../../backend/services/pdfService');
 
 // This is the main test function
@@ -25,21 +23,22 @@ exports.handler = async (event, context) => {
             // Create our PDF fixing toolbox
             const pdfService = new PdfService();
             
-            // Create a small test PDF with some text to check
+            // Create a small test PDF with some text
             const testText = "Test PDF with Romanian letters: ă, â, î, ș, ț";
             const testFileBuffer = Buffer.from(testText);
             
-            // Try to get text from our test PDF
-            const extractedText = await pdfService.extractText(testFileBuffer);
+            // Try to fix our test PDF
+            const processedFile = await pdfService.processPdfFile(testFileBuffer, 'test.pdf');
             
-            console.log('PDF.co API test successful! Got text:', extractedText);
+            console.log('PDF.co API test successful!');
             
             return {
                 statusCode: 200,
                 body: JSON.stringify({
                     success: true,
                     message: 'API connection successful',
-                    extractedText: extractedText.substring(0, 100) + '...' // Show first 100 characters
+                    fileId: processedFile.fileId,
+                    fileName: processedFile.fileName
                 })
             };
         } catch (error) {

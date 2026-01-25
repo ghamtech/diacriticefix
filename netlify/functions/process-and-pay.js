@@ -1,23 +1,22 @@
-// This is like our special checkout machine at a store
-// It takes your PDF file, fixes it, and then takes your payment
+// This is like our checkout counter at a store
+// It takes your PDF, fixes it, and then takes your payment
 
 // We need these special tools
 const Stripe = require('stripe');
-const PdfService = require('../../backend/services/pdfService'); // Our PDF fixing toolbox
+const PdfService = require('../../backend/services/pdfService');
 const { v4: uuidv4 } = require('uuid');
 
-// This is our secret key to use Stripe payment system
-// It's like a password for our cash register
+// This is our secret key for the payment machine (Stripe)
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2024-06-20'
+  apiVersion: '2024-06-20'  // This tells Stripe which version to use
 });
 
-// We need a place to temporarily store our fixed files
+// Where we keep fixed files temporarily
 const path = require('path');
 const fs = require('fs');
 const tmpDir = '/tmp/processed-files';
 
-// Create our temporary storage folder if it doesn't exist
+// Make sure our temporary folder exists
 if (!fs.existsSync(tmpDir)) {
   fs.mkdirSync(tmpDir, { recursive: true });
 }
@@ -25,7 +24,7 @@ if (!fs.existsSync(tmpDir)) {
 // This is the main function that runs when someone wants to fix a PDF
 exports.handler = async (event, context) => {
   try {
-    // These special instructions help our website talk to other websites safely
+    // These special instructions help our website talk safely with other websites
     const headers = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Headers': 'Content-Type',
@@ -60,23 +59,22 @@ exports.handler = async (event, context) => {
     }
     
     // Get the important parts from the request
-    const { fileData, fileName, userEmail } = body;
+    const { fileData, fileName } = body;
     
     // Make sure we have everything we need
-    if (!fileData || !fileName || !userEmail) {
+    if (!fileData || !fileName) {
       return { 
         statusCode: 400, 
         headers,
         body: JSON.stringify({ 
-          error: 'Missing information - need file, filename, and email',
+          error: 'Missing information - need file and filename',
           fileData: !!fileData,
-          fileName: !!fileName,
-          userEmail: !!userEmail
+          fileName: !!fileName
         }) 
       };
     }
     
-    console.log(`Fixing file: ${fileName} for email: ${userEmail}`);
+    console.log(`Fixing file: ${fileName}`);
     
     try {
       // Create our PDF fixing toolbox
@@ -88,7 +86,7 @@ exports.handler = async (event, context) => {
       console.log('File is ready to fix, size:', fileBuffer.length);
       
       // Fix the PDF file!
-      const processedFile = await pdfService.processPdfFile(fileBuffer, userEmail, fileName);
+      const processedFile = await pdfService.processPdfFile(fileBuffer, fileName);
       console.log('PDF fixed successfully', processedFile);
       
       // Save the fixed file temporarily
@@ -99,9 +97,9 @@ exports.handler = async (event, context) => {
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         line_items: [{
-          price_ {
+          price_data: {
             currency: 'eur',
-            product_ {
+            product_data: {
               name: 'PDF with fixed diacritics',
               description: fileName
             },
@@ -116,12 +114,9 @@ exports.handler = async (event, context) => {
         cancel_url: `${process.env.BASE_URL}/`,
         // Our special ID to connect payment to file
         client_reference_id: processedFile.fileId,
-        // User's email for payment receipt
-        customer_email: userEmail,
-        meta {
+        metadata: {
           fileId: processedFile.fileId,
-          fileName: fileName,
-          userEmail: userEmail
+          fileName: fileName
         }
       });
       
@@ -143,15 +138,12 @@ exports.handler = async (event, context) => {
       console.error('Problem fixing PDF:', processingError);
       // Even if fixing fails, we still want to let the user pay and get an error message
       return {
-        statusCode: 200,
+        statusCode: 500,
         headers,
         body: JSON.stringify({
-          success: true, // Still continue to payment
-          fileId: uuidv4(),
-          sessionId: 'error_session_' + Date.now(),
-          paymentUrl: `${process.env.BASE_URL}/download.html?error=processing_failed&message=${encodeURIComponent(processingError.message)}`,
-          error: processingError.message,
-          isFallback: true
+          success: false,
+          error: 'Failed to process PDF file',
+          details: processingError.message
         })
       };
     }
