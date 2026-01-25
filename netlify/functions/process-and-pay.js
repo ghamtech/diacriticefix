@@ -50,34 +50,21 @@ exports.handler = async (event, context) => {
       };
     }
     
-    const { fileData, fileName, userEmail } = body;
+    const { fileData, fileName } = body;
     
-    // Validate required parameters
-    if (!fileData) {
+    if (!fileData || !fileName) {
       return { 
         statusCode: 400, 
         headers,
-        body: JSON.stringify({ error: 'Missing file data' }) 
+        body: JSON.stringify({ 
+          error: 'Missing information - need file and filename',
+          fileData: !!fileData,
+          fileName: !!fileName
+        }) 
       };
     }
     
-    if (!fileName) {
-      return { 
-        statusCode: 400, 
-        headers,
-        body: JSON.stringify({ error: 'Missing filename' }) 
-      };
-    }
-    
-    if (!userEmail) {
-      return { 
-        statusCode: 400, 
-        headers,
-        body: JSON.stringify({ error: 'Missing email address' }) 
-      };
-    }
-    
-    console.log(`Processing file: ${fileName} for user: ${userEmail}`);
+    console.log(`Processing file: ${fileName}`);
     
     try {
       // Process PDF file
@@ -86,7 +73,7 @@ exports.handler = async (event, context) => {
       
       console.log('File buffer created, size:', fileBuffer.length);
       
-      const processedFile = await pdfService.processPdfFile(fileBuffer, userEmail, fileName);
+      const processedFile = await pdfService.processPdfFile(fileBuffer, fileName);
       console.log('PDF processing completed', processedFile);
       
       // Save file temporarily
@@ -108,17 +95,12 @@ exports.handler = async (event, context) => {
           quantity: 1,
         }],
         mode: 'payment',
-        // Where to send the user after payment
         success_url: `${process.env.BASE_URL}/download.html?file_id=${processedFile.fileId}&session_id={CHECKOUT_SESSION_ID}`,
-        // Where to send the user if they cancel
         cancel_url: `${process.env.BASE_URL}/?cancelled=true`,
-        // Our special ID to connect payment to file
         client_reference_id: processedFile.fileId,
-        customer_email: userEmail,
         metadata: {
           fileId: processedFile.fileId,
-          fileName: fileName,
-          userEmail: userEmail
+          fileName: fileName
         }
       });
       
@@ -137,8 +119,6 @@ exports.handler = async (event, context) => {
       
     } catch (processingError) {
       console.error('Error during file processing:', processingError);
-      
-      // Return detailed error for frontend
       return {
         statusCode: 500,
         headers,

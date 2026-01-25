@@ -76,9 +76,6 @@ exports.handler = async (event, context) => {
                 };
             }
             
-            // Get file name from metadata
-            const fileName = session.metadata?.fileName || 'document_reparat.pdf';
-            
             console.log('Payment verified successfully for file:', fileId);
             
             return {
@@ -87,7 +84,7 @@ exports.handler = async (event, context) => {
                 body: JSON.stringify({ 
                     success: true, 
                     fileId: fileId,
-                    fileName: fileName
+                    fileName: session.metadata.fileName || 'document_reparat.pdf'
                 })
             };
             

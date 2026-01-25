@@ -1,48 +1,44 @@
-// This is like a test machine to check if our PDF fixing tools are working
-
 const PdfService = require('../../backend/services/pdfService');
 
-// This is the main test function
 exports.handler = async (event, context) => {
     try {
-        console.log('Starting API test...');
+        console.log('Testing API connections...');
         
-        // Check if we have our secret key
+        // Check if PDF.co API key is set
         if (!process.env.PDFCO_API_KEY) {
-            console.error('PDF.co API key is missing!');
+            console.error('PDFCO_API_KEY environment variable is not set');
             return {
                 statusCode: 200,
                 body: JSON.stringify({
                     success: false,
-                    message: 'Missing PDF.co API key'
+                    message: 'PDFCO_API_KEY environment variable is not set'
                 })
             };
         }
         
+        // Test PDF.co API connection
         try {
-            // Create our PDF fixing toolbox
             const pdfService = new PdfService();
             
-            // Create a small test PDF with some text
-            const testText = "Test PDF with Romanian letters: ă, â, î, ș, ț";
-            const testFileBuffer = Buffer.from(testText);
+            // Create a simple test string to extract text from
+            const testText = "Test PDF with diacritics: ș, ț, â, î, ă";
+            const testPdfContent = Buffer.from(testText).toString('base64');
             
-            // Try to fix our test PDF
-            const processedFile = await pdfService.processPdfFile(testFileBuffer, 'test.pdf');
+            const fileBuffer = Buffer.from(testPdfContent, 'base64');
+            const extractedText = await pdfService.processPdfFile(fileBuffer, 'test.pdf');
             
-            console.log('PDF.co API test successful!');
+            console.log('PDF.co API connection successful, extracted text:', extractedText);
             
             return {
                 statusCode: 200,
                 body: JSON.stringify({
                     success: true,
                     message: 'API connection successful',
-                    fileId: processedFile.fileId,
-                    fileName: processedFile.fileName
+                    extractedText: extractedText.substring(0, 100) + '...' // Show first 100 chars
                 })
             };
         } catch (error) {
-            console.error('PDF.co API test failed:', error);
+            console.error('PDF.co API connection failed:', error);
             console.error('Error details:', error.response?.data || error.message);
             
             return {
@@ -51,17 +47,19 @@ exports.handler = async (event, context) => {
                     success: false,
                     error: error.response?.data?.message || error.message,
                     status: error.response?.status,
-                    details: error.response?.data
+                    url: error.config?.url,
+                    requestData: error.config?.data
                 })
             };
         }
     } catch (error) {
-        console.error('Big problem in test:', error);
+        console.error('Critical error in test-api function:', error);
         return {
             statusCode: 500,
             body: JSON.stringify({
                 error: 'Test failed',
-                message: error.message
+                message: error.message,
+                stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
             })
         };
     }

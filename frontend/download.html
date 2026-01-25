@@ -12,7 +12,6 @@
         <div class="container logo">
             <a href="index.html" style="display: flex; align-items: center; text-decoration: none; color: white;">
                 <img src="logo.png" alt="DiacriticeFix Logo" class="logo-img">
-                <h1>DiacriticeFix.ro</h1>
             </a>
         </div>
     </header>
@@ -20,7 +19,7 @@
     <div class="container">
         <div class="payment-thankyou" id="thankYouPage">
             <h2>Mulțumim pentru plată!</h2>
-            <p>PDF-ul dumneavoastră va fi descărcat automat în 5 secunde.</p>
+            <p>PDF-ul dumneavoastră se va descărca automat în 5 secunde.</p>
             <a href="#" class="download-link hidden" id="downloadLink">Descarcă acum</a>
         </div>
     </div>
@@ -36,13 +35,11 @@
             const fileId = urlParams.get('file_id');
             const sessionId = urlParams.get('session_id');
             
-            console.log('Download page loaded with file_id:', fileId, 'session_id:', sessionId);
-            
             if (fileId && sessionId) {
                 const thankYouPage = document.getElementById('thankYouPage');
                 const downloadLink = document.getElementById('downloadLink');
                 
-                // Verify payment and get file content
+                // Verify payment and get file
                 fetch('/.netlify/functions/verify-payment', {
                     method: 'POST',
                     headers: {
@@ -50,37 +47,23 @@
                     },
                     body: JSON.stringify({ sessionId: sessionId })
                 })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Payment verification failed');
-                    }
-                    return response.json();
-                })
+                .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        console.log('Payment verified successfully');
-                        
                         // Get the file content
-                        return fetch(`/.netlify/functions/get-file?file_id=${fileId}`)
-                            .then(response => {
-                                if (!response.ok) {
-                                    throw new Error('Failed to fetch file');
-                                }
-                                return response.blob();
-                            })
+                        fetch(`/.netlify/functions/get-file?file_id=${fileId}`)
+                            .then(response => response.blob())
                             .then(blob => {
-                                // Create download link
                                 const url = window.URL.createObjectURL(blob);
                                 const fileName = data.fileName || 'document_reparat.pdf';
                                 
                                 downloadLink.href = url;
                                 downloadLink.download = fileName;
-                                downloadLink.textContent = 'Descarcă PDF-ul reparat';
+                                downloadLink.textContent = 'Descarcă acum documentul reparat';
                                 downloadLink.classList.remove('hidden');
                                 
                                 // Auto-click download after 5 seconds
                                 setTimeout(() => {
-                                    console.log('Auto-triggering download');
                                     downloadLink.click();
                                     thankYouPage.innerHTML = '<h2>Descărcare finalizată!</h2><p>Poți închide această pagină acum.</p>';
                                     
@@ -89,23 +72,15 @@
                                 }, 5000);
                             });
                     } else {
-                        throw new Error(data.error || 'Payment verification failed');
+                        thankYouPage.innerHTML = '<h2>Eroare</h2><p>A apărut o eroare la procesarea plății. Vă rugăm să contactați suportul.</p>';
                     }
                 })
                 .catch(error => {
-                    console.error('Error in payment verification or file download:', error);
-                    thankYouPage.innerHTML = `
-                        <h2>Eroare la descărcare</h2>
-                        <p>A apărut o eroare la procesarea plății sau la descărcarea fișierului.</p>
-                        <p>Vă rugăm să contactați suportul la: <a href="mailto:ghamtech@ghamtech.com">ghamtech@ghamtech.com</a></p>
-                    `;
+                    console.error('Error:', error);
+                    thankYouPage.innerHTML = '<h2>Eroare de sistem</h2><p>A apărut o eroare la procesarea cererii. Vă rugăm să încercați din nou mai târziu.</p>';
                 });
             } else {
-                document.getElementById('thankYouPage').innerHTML = `
-                    <h2>Link invalid</h2>
-                    <p>Link-ul de descărcare este invalid sau a expirat.</p>
-                    <p>Vă rugăm să încercați din nou procesul de plată sau contactați suportul.</p>
-                `;
+                document.getElementById('thankYouPage').innerHTML = '<h2>Link invalid</h2><p>Link-ul de descărcare este invalid sau a expirat.</p>';
             }
         });
     </script>
